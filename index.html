@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpinWin - Spin, Earn, Withdraw Real Cash!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #41431B;
+            --accent: #AEB784;
+            --beige: #E3DBBB;
+            --offwhite: #F8F3E1;
+            --background: #E8F0E0;
+        }
+        
+        .dark {
+            --primary: #AEB784;
+            --accent: #41431B;
+            --background: #000000;
+            --offwhite: #1a1a1a;
+            --beige: #2a2a2a;
+        }
+        
+        body {
+            background-color: var(--background);
+            transition: background-color 0.3s;
+        }
+        
+        .spin-wheel {
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+        
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        .glass {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        input, select, textarea {
+            background: var(--offwhite);
+            border: 1px solid var(--accent);
+            color: inherit;
+        }
+        
+        .dark input, .dark select, .dark textarea {
+            background: #1a1a1a;
+            border-color: #333;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: var(--offwhite);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .dark .card {
+            background: #1a1a1a;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 dark:text-gray-100">
+    <div id="app"></div>
+    
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <script>
+        // ============================================
+        // SPINWIN - FULLY REAL-TIME STANDALONE APP
+        // ============================================
+        
+        // Storage Keys
+        const STORAGE_KEYS = {
+            USERS: 'spinwin_users',
+            CURRENT_USER: 'spinwin_current_user',
+            TASKS: 'spinwin_tasks',
+            ACHIEVEMENTS: 'spinwin_achievements',
+            WITHDRAWALS: 'spinwin_withdrawals',
+            TRANSACTIONS: 'spinwin_transactions',
+            SPIN_LOGS: 'spinwin_spin_logs',
+            REFERRALS: 'spinwin_referrals',
+            SETTINGS: 'spinwin_settings'
+        };
+        
+        // BroadcastChannel for real-time cross-tab communication
+        const channel = new BroadcastChannel('spinwin_realtime');
+        
+        // ============================================
+        // DATA HELPERS
+        // ============================================
+        
+        function getData(key, defaultValue = null) {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : defaultValue;
+        }
+        
+        function setData(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+            // Broadcast change to other tabs
+            channel.postMessage({ type: 'DATA_UPDATE', key, value });
+        }
+        
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+        
+        function generateReferralCode() {
+            return 'SPIN' + Math.floor(1000 + Math.random() * 9000);
+        }
+        
+        // ============================================
+        // INITIALIZE DEFAULT DATA
+        // ============================================
+        
+        function initializeData() {
+            // Initialize users if not exists
+            if (!getData(STORAGE_KEYS.USERS)) {
+                setData(STORAGE_KEYS.USERS, []);
+            }
+            
+            // Initialize tasks
+            if (!getData(STORAGE_KEYS.TASKS)) {
+                const defaultTasks = [
+                    { id: generateId(), taskId: 'DAILY_SPIN', name: 'Spin the Wheel', description: 'Complete your daily spins', pointsReward: 50, xpReward: 5, type: 'daily', category: 'spin', link: null, isActive: true },
+                    { id: generateId(), taskId: 'WATCH_VIDEO', name: 'Watch Video', description: 'Watch a short video ad', pointsReward: 30, xpReward: 3, type: 'daily', category: 'video', link: 'https://youtube.com', isActive: true },
+                    { id: generateId(), taskId: 'SHARE_APP', name: 'Share App', description: 'Share SpinWin with friends', pointsReward: 100, xpReward: 10, type: 'daily', category: 'social', link: null, isActive: true },
+                    { id: generateId(), taskId: 'JOIN_TELEGRAM', name: 'Join Telegram', description: 'Join our Telegram channel', pointsReward: 200, xpReward: 20, type: 'onetime', category: 'social', link: 'https://t.me/spinwin', isActive: true },
+                    { id: generateId(), taskId: 'FOLLOW_INSTA', name: 'Follow Instagram', description: 'Follow us on Instagram', pointsReward: 150, xpReward: 15, type: 'onetime', category: 'social', link: 'https://instagram.com', isActive: true },
+                    { id: generateId(), taskId: 'WEEKLY_SPINS', name: 'Complete 50 Spins', description: 'Spin 50 times this week', pointsReward: 500, xpReward: 50, type: 'weekly', category: 'spin', link: null, isActive: true }
+                ];
+                setData(STORAGE_KEYS.TASKS, defaultTasks);
+            }
+            
+            // Initialize achievements
+            if (!getData(STORAGE_KEYS.ACHIEVEMENTS)) {
+                const defaultAchievements = [
+                    { id: generateId(), badgeId: 'first_spin', name: 'First Spin', description: 'Complete your first spin', icon: '🎰', pointsReward: 50, condition: 'spins >= 1', category: 'spin', unlocked: false },
+                    { id: generateId(), badgeId: 'spin_100', name: 'Spin Master', description: 'Complete 100 spins', icon: '🎯', pointsReward: 500, condition: 'spins >= 100', category: 'spin', unlocked: false },
+                    { id: generateId(), badgeId: 'first_withdrawal', name: 'Cash Out', description: 'Make your first withdrawal', icon: '💰', pointsReward: 100, condition: 'withdrawals >= 1', category: 'wallet', unlocked: false },
+                    { id: generateId(), badgeId: 'referral_5', name: 'Recruiter', description: 'Refer 5 friends', icon: '👥', pointsReward: 300, condition: 'referrals >= 5', category: 'referral', unlocked: false },
+                    { id: generateId(), badgeId: 'streak_7', name: 'Dedicated', description: '7-day login streak', icon: '🔥', pointsReward: 200, condition: 'streak >= 7', category: 'streak', unlocked: false },
+                    { id: generateId(), badgeId: 'level_5', name: 'Rising Star', description: 'Reach level 5', icon: '⭐', pointsReward: 400, condition: 'level >= 5', category: 'level', unlocked: false }
+                ];
+                setData(STORAGE_KEYS.ACHIEVEMENTS, defaultAchievements);
+            }
+            
+            // Initialize empty arrays for other data
+            if (!getData(STORAGE_KEYS.WITHDRAWALS)) setData(STORAGE_KEYS.WITHDRAWALS, []);
+            if (!getData(STORAGE_KEYS.TRANSACTIONS)) setData(STORAGE_KEYS.TRANSACTIONS, []);
+            if (!getData(STORAGE_KEYS.SPIN_LOGS)) setData(STORAGE_KEYS.SPIN_LOGS, []);
+            if (!getData(STORAGE_KEYS.REFERRALS)) setData(STORAGE_KEYS.REFERRALS, []);
+            
+            // Create admin account if not exists
+            const users = getData(STORAGE_KEYS.USERS, []);
+            const adminExists = users.find(u => u.email === 'saadking3132@gmail.com');
+            if (!adminExists) {
+                const adminUser = {
+                    id: generateId(),
+                    name: 'Saad Malik',
+                    email: 'saadking3132@gmail.com',
+                    phone: '03258356212',
+                    password: 'Saadmalik99$',
+                    isAdmin: true,
+                    isVerified: true,
+                    referralCode: 'SPIN0001',
+                    referredBy: null,
+                    level: 7,
+                    xp: 10000,
+                    pointsBalance: 50000,
+                    totalPointsEarned: 100000,
+                    totalPointsWithdrawn: 50000,
+                    dailySpinsRemaining: 10,
+                    totalSpinsCompleted: 500,
+                    streakDays: 30,
+                    lastSpinReset: new Date().toISOString(),
+                    lastBonusClaim: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                };
+                users.push(adminUser);
+                setData(STORAGE_KEYS.USERS, users);
+            }
+        }
+        
+        // ============================================
+        // REAL-TIME EVENT SYSTEM
+        // ============================================
+        
+        const eventListeners = {};
+        
+        function on(event, callback) {
+            if (!eventListeners[event]) eventListeners[event] = [];
+            eventListeners[event].push(callback);
+        }
+        
+        function emit(event, data) {
+            if (eventListeners[event]) {
+                eventListeners[event].forEach(cb => cb(data));
+            }
+            // Broadcast to other tabs
+            channel.postMessage({ type: 'EVENT', event, data });
+        }
+        
+        // Listen for messages from other tabs
+        channel.onmessage = (e) => {
+            const { type, event, data, key, value } = e.data;
+            if (type === 'EVENT' && eventListeners[event]) {
+                eventListeners[event].forEach(cb => cb(data));
+            }
+            if (type === 'DATA_UPDATE') {
+                // Refresh current user if needed
+                const currentUser = getData(STORAGE_KEYS.CURRENT_USER);
+                if (currentUser && key === STORAGE_KEYS.USERS) {
+                    const updatedUser = value.find(u => u.id === currentUser.id);
+                    if (updatedUser) {
+                        setData(STORAGE_KEYS.CURRENT_USER, updatedUser);
+                        render();
+                    }
+                }
+            }
+            if (type === 'ANNOUNCEMENT') {
+                showToast(data.message, data.type || 'info');
+            }
+        };
+        
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        
+        function showToast(message, type = 'info', icon = null) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            const colors = {
+                success: 'bg-green-100 border-green-500 dark:bg-green-900',
+                error: 'bg-red-100 border-red-500 dark:bg-red-900',
+                warning: 'bg-yellow-100 border-yellow-500 dark:bg-yellow-900',
+                info: 'bg-blue-100 border-blue-500 dark:bg-blue-900'
+            };
+            
+            toast.className = `toast ${colors[type]} border-l-4 p-4 rounded-lg shadow-lg max-w-sm`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">${icon || icons[type]}</span>
+                    <p class="font-medium">${message}</p>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+        
+        // ============================================
+        // THEME MANAGEMENT
+        // ============================================
+        
+        function getTheme() {
+            return localStorage.getItem('theme') || 'light';
+        }
+        
+        function setTheme(theme) {
+            localStorage.setItem('theme', theme);
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            render();
+        }
+        
+        function toggleTheme() {
+            setTheme(getTheme() === 'light' ? 'dark' : 'light');
+        }
+        
+        // ============================================
+        // AUTH FUNCTIONS
+        // ============================================
+        
+        function getCurrentUser() {
+            return getData(STORAGE_KEYS.CURRENT_USER);
+        }
+        
+        function login(email, password) {
+            const users = getData(STORAGE_KEYS.USERS, []);
+            const user = users.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                setData(STORAGE_KEYS.CURRENT_USER, user);
+                emit('USER_LOGIN', user);
+                showToast(`Welcome back, ${user.name}!`, 'success', '👋');
+                return { success: true, user };
+            }
+            return { success: false, message: 'Invalid email or password' };
+        }
+        
+        function register(name, email, phone, password, referralCode = null) {
+            const users = getData(STORAGE_KEYS.USERS, []);
+            
+            if (users.find(u => u.email === email)) {
+                return { success: false, message: 'Email already registered' };
+            }
+            
+            let referredBy = null;
+            if (referralCode) {
+                const referrer = users.find(u => u.referralCode === referralCode.toUpperCase());
+                if (referrer) {
+                    referredBy = referrer.id;
+                    // Add referral record
+                    const referrals = getData(STORAGE_KEYS.REFERRALS, []);
+                    referrals.push({
+                        id: generateId(),
+                        referrerId: referrer.id,
+                        referredId: null,
+                        code: referralCode.toUpperCase(),
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
+                    });
+                    setData(STORAGE_KEYS.REFERRALS, referrals);
+                }
+            }
+            
+            const newUser = {
+                id: generateId(),
+                name,
+                email,
+                phone,
+                password,
+                isAdmin: false,
+                isVerified: false,
+                referralCode: generateReferralCode(),
+                referredBy,
+                level: 0,
+                xp: 0,
+                pointsBalance: 0,
+                totalPointsEarned: 0,
+                totalPointsWithdrawn: 0,
+                dailySpinsRemaining: 5,
+                totalSpinsCompleted: 0,
+                streakDays: 0,
+                lastSpinReset: null,
+                lastBonusClaim: null,
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            setData(STORAGE_KEYS.USERS, users);
+            setData(STORAGE_KEYS.CURRENT_USER, newUser);
+            
+            emit('USER_REGISTER', newUser);
+            showToast('Account created successfully!', 'success', '🎉');
+            
+            return { success: true, user: newUser };
+        }
+        
+        function logout() {
+            const user = getCurrentUser();
+            localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            emit('USER_LOGOUT', user);
+            showToast('Logged out successfully', 'info');
+            render();
+        }
+        
+        function updateUser(userId, updates) {
+            const users = getData(STORAGE_KEYS.USERS, []);
+            const index = users.findIndex(u => u.id === userId);
+            
+            if (index !== -1) {
+                users[index] = { ...users[index], ...updates };
+                setData(STORAGE_KEYS.USERS, users);
+                
+                const currentUser = getCurrentUser();
+                if (currentUser && currentUser.id === userId) {
+                    setData(STORAGE_KEYS.CURRENT_USER, users[index]);
+                }
+                
+                emit('USER_UPDATE', users[index]);
+                return users[index];
+            }
+            return null;
+        }
+        
+        // ============================================
+        // SPIN WHEEL LOGIC
+        // ============================================
+        
+        const WHEEL_SEGMENTS = [
+            { label: '50', points: 50, color: '#FF6B6B' },
+            { label: '100', points: 100, color: '#4ECDC4' },
+            { label: 'Try Again', points: 0, color: '#95E1D3' },
+            { label: '150', points: 150, color: '#F38181' },
+            { label: '300', points: 300, color: '#AA96DA' },
+            { label: 'Try Again', points: 0, color: '#FCBAD3' },
+            { label: '500 💰', points: 500, color: '#FFE66D', isJackpot: true },
+            { label: '50', points: 50, color: '#6C5CE7' },
+            { label: '100', points: 100, color: '#A8E6CF' },
+            { label: '200', points: 200, color: '#FFEAA7' },
+            { label: 'Try Again', points: 0, color: '#DFE6E9' },
+            { label: '75', points: 75, color: '#74B9FF' }
+        ];
+        
+        const LEVEL_NAMES = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Legend', 'Grandmaster'];
+        const LEVEL_EMOJIS = ['🥉', '🥈', '🥇', '💠', '💎', '🔮', '👑', '🌟'];
+        const LEVEL_XP = [0, 100, 300, 600, 1000, 2000, 4000, 8000];
+        
+        function calculateLevel(xp) {
+            for (let i = LEVEL_XP.length - 1; i >= 0; i--) {
+                if (xp >= LEVEL_XP[i]) return i;
+            }
+            return 0;
+        }
+        
+        function getSpinsForLevel(level) {
+            return 5 + level;
+        }
+        
+        function needsDailyReset(lastReset) {
+            if (!lastReset) return true;
+            const last = new Date(lastReset);
+            const now = new Date();
+            return last.toDateString() !== now.toDateString();
+        }
+        
+        function spinWheel() {
+            const user = getCurrentUser();
+            if (!user) return { success: false, message: 'Not authenticated' };
+            
+            // Check for daily reset
+            if (needsDailyReset(user.lastSpinReset)) {
+                user.dailySpinsRemaining = getSpinsForLevel(user.level);
+                user.lastSpinReset = new Date().toISOString();
+            }
+            
+            if (user.dailySpinsRemaining <= 0) {
+                return { success: false, message: 'No spins remaining. Come back tomorrow!' };
+            }
+            
+            // Weighted random selection
+            const weights = [15, 15, 15, 10, 5, 15, 2, 15, 10, 8, 15, 10];
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let random = Math.random() * totalWeight;
+            let segmentIndex = 0;
+            
+            for (let i = 0; i < weights.length; i++) {
+                random -= weights[i];
+                if (random <= 0) {
+                    segmentIndex = i;
+                    break;
+                }
+            }
+            
+            const segment = WHEEL_SEGMENTS[segmentIndex];
+            const pointsWon = segment.points;
+            const xpEarned = Math.max(5, Math.floor(pointsWon / 10));
+            
+            // Update user
+            const newXp = user.xp + xpEarned;
+            const newLevel = calculateLevel(newXp);
+            const leveledUp = newLevel > user.level;
+            
+            const updates = {
+                pointsBalance: user.pointsBalance + pointsWon,
+                totalPointsEarned: user.totalPointsEarned + pointsWon,
+                xp: newXp,
+                level: newLevel,
+                dailySpinsRemaining: user.dailySpinsRemaining - 1,
+                totalSpinsCompleted: user.totalSpinsCompleted + 1,
+                lastSpinReset: user.lastSpinReset || new Date().toISOString()
+            };
+            
+            const updatedUser = updateUser(user.id, updates);
+            
+            // Log spin
+            const spinLogs = getData(STORAGE_KEYS.SPIN_LOGS, []);
+            spinLogs.unshift({
+                id: generateId(),
+                userId: user.id,
+                segmentIndex,
+                pointsWon,
+                xpEarned,
+                createdAt: new Date().toISOString()
+            });
+            setData(STORAGE_KEYS.SPIN_LOGS, spinLogs);
+            
+            // Create transaction
+            if (pointsWon > 0) {
+                addTransaction(user.id, 'spin_win', pointsWon, `Won ${pointsWon} points from spin`);
+            }
+            
+            // Emit real-time events
+            emit('SPIN_RESULT', { userId: user.id, pointsWon, segmentIndex });
+            
+            if (pointsWon >= 300) {
+                emit('JACKPOT', { userId: user.id, pointsWon });
+                // Broadcast jackpot to all tabs
+                channel.postMessage({ 
+                    type: 'ANNOUNCEMENT', 
+                    data: { message: `🎰 JACKPOT! Someone won ${pointsWon} points!`, type: 'success' }
+                });
+            }
+            
+            if (leveledUp) {
+                emit('LEVEL_UP', { userId: user.id, newLevel, levelName: LEVEL_NAMES[newLevel] });
+                showToast(`🎉 Level Up! You're now ${LEVEL_NAMES[newLevel]}!`, 'success', LEVEL_EMOJIS[newLevel]);
+            }
+            
+            render();
+            
+            return {
+                success: true,
+                segmentIndex,
+                pointsWon,
+                xpEarned,
+                remainingSpins: updates.dailySpinsRemaining,
+                isJackpot: segment.isJackpot
+            };
+        }
+        
+        // ============================================
+        // TASK FUNCTIONS
+        // ============================================
+        
+        function getTasks() {
+            return getData(STORAGE_KEYS.TASKS, []);
+        }
+        
+        function completeTask(taskId) {
+            const user = getCurrentUser();
+            if (!user) return { success: false, message: 'Not authenticated' };
+            
+            const tasks = getTasks();
+            const task = tasks.find(t => t.id === taskId || t.taskId === taskId);
+            
+            if (!task) return { success: false, message: 'Task not found' };
+            if (!task.isActive) return { success: false, message: 'Task is not active' };
+            
+            // Check completion
+            const transactions = getData(STORAGE_KEYS.TRANSACTIONS, []);
+            const today = new Date().toDateString();
+            
+            if (task.type === 'daily') {
+                const todayCompletion = transactions.find(t => 
+                    t.userId === user.id && 
+                    t.reference === task.id && 
+                    new Date(t.createdAt).toDateString() === today
+                );
+                if (todayCompletion) return { success: false, message: 'Already completed today' };
+            } else if (task.type === 'onetime') {
+                const completed = transactions.find(t => 
+                    t.userId === user.id && 
+                    t.reference === task.id
+                );
+                if (completed) return { success: false, message: 'Already completed' };
+            }
+            
+            // Award points
+            const updates = {
+                pointsBalance: user.pointsBalance + task.pointsReward,
+                totalPointsEarned: user.totalPointsEarned + task.pointsReward,
+                xp: user.xp + task.xpReward
+            };
+            
+            updateUser(user.id, updates);
+            
+            // Create transaction
+            addTransaction(user.id, 'task', task.pointsReward, `Completed: ${task.name}`, task.id);
+            
+            emit('TASK_COMPLETED', { userId: user.id, taskId, taskName: task.name, pointsAwarded: task.pointsReward });
+            showToast(`Task completed! +${task.pointsReward} points`, 'success', '✅');
+            
+            render();
+            return { success: true, points: task.pointsReward };
+        }
+        
+        // ============================================
+        // WALLET & WITHDRAWAL FUNCTIONS
+        // ============================================
+        
+        function addTransaction(userId, type, points, description, reference = null) {
+            const transactions = getData(STORAGE_KEYS.TRANSACTIONS, []);
+            transactions.unshift({
+                id: generateId(),
+                userId,
+                type,
+                points,
+                rsEquivalent: points * 0.1,
+                description,
+                reference,
+                status: 'completed',
+                createdAt: new Date().toISOString()
+            });
+            setData(STORAGE_KEYS.TRANSACTIONS, transactions);
+        }
+        
+        function requestWithdrawal(method, points, accountNumber, cnicLast6 = null, accountName = null, bankName = null) {
+            const user = getCurrentUser();
+            if (!user) return { success: false, message: 'Not authenticated' };
+            
+            if (points < 3000) return { success: false, message: 'Minimum withdrawal is 3000 points (Rs. 300)' };
+            if (user.pointsBalance < points) return { success: false, message: 'Insufficient balance' };
+            
+            const rsAmount = points * 0.1;
+            
+            // Check weekly limit
+            const withdrawals = getData(STORAGE_KEYS.WITHDRAWALS, []);
+            const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const weeklyCount = withdrawals.filter(w => 
+                w.userId === user.id && 
+                w.status !== 'rejected' &&
+                new Date(w.createdAt) > oneWeekAgo
+            ).length;
+            
+            if (weeklyCount >= 2) return { success: false, message: 'Maximum 2 withdrawals per week' };
+            
+            // Create withdrawal
+            const withdrawal = {
+                id: generateId(),
+                userId: user.id,
+                userName: user.name,
+                userEmail: user.email,
+                method,
+                pointsRequested: points,
+                rsAmount,
+                accountNumber,
+                cnicLast6,
+                accountName,
+                bankName,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+            
+            withdrawals.push(withdrawal);
+            setData(STORAGE_KEYS.WITHDRAWALS, withdrawals);
+            
+            // Deduct points
+            updateUser(user.id, { pointsBalance: user.pointsBalance - points });
+            addTransaction(user.id, 'withdrawal', -points, `Withdrawal via ${method}`, withdrawal.id);
+            
+            emit('WITHDRAWAL_REQUEST', withdrawal);
+            showToast(`Withdrawal request submitted! Rs. ${rsAmount}`, 'success', '💰');
+            
+            render();
+            return { success: true, withdrawal };
+        }
+        
+        function approveWithdrawal(withdrawalId) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            const withdrawals = getData(STORAGE_KEYS.WITHDRAWALS, []);
+            const index = withdrawals.findIndex(w => w.id === withdrawalId);
+            
+            if (index === -1) return { success: false, message: 'Not found' };
+            if (withdrawals[index].status !== 'pending') return { success: false, message: 'Already processed' };
+            
+            withdrawals[index].status = 'approved';
+            withdrawals[index].processedAt = new Date().toISOString();
+            withdrawals[index].processedBy = user.id;
+            setData(STORAGE_KEYS.WITHDRAWALS, withdrawals);
+            
+            // Update user's total withdrawn
+            const withdrawal = withdrawals[index];
+            const targetUser = getData(STORAGE_KEYS.USERS, []).find(u => u.id === withdrawal.userId);
+            if (targetUser) {
+                updateUser(targetUser.id, { 
+                    totalPointsWithdrawn: targetUser.totalPointsWithdrawn + withdrawal.pointsRequested 
+                });
+            }
+            
+            emit('WITHDRAWAL_UPDATE', { withdrawalId, status: 'approved', userId: withdrawal.userId });
+            showToast('Withdrawal approved!', 'success', '✅');
+            
+            render();
+            return { success: true };
+        }
+        
+        function rejectWithdrawal(withdrawalId, note) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            const withdrawals = getData(STORAGE_KEYS.WITHDRAWALS, []);
+            const index = withdrawals.findIndex(w => w.id === withdrawalId);
+            
+            if (index === -1) return { success: false, message: 'Not found' };
+            if (withdrawals[index].status !== 'pending') return { success: false, message: 'Already processed' };
+            
+            withdrawals[index].status = 'rejected';
+            withdrawals[index].adminNote = note;
+            withdrawals[index].processedAt = new Date().toISOString();
+            withdrawals[index].processedBy = user.id;
+            setData(STORAGE_KEYS.WITHDRAWALS, withdrawals);
+            
+            // Refund points
+            const withdrawal = withdrawals[index];
+            const targetUser = getData(STORAGE_KEYS.USERS, []).find(u => u.id === withdrawal.userId);
+            if (targetUser) {
+                updateUser(targetUser.id, { pointsBalance: targetUser.pointsBalance + withdrawal.pointsRequested });
+            }
+            
+            emit('WITHDRAWAL_UPDATE', { withdrawalId, status: 'rejected', userId: withdrawal.userId, note });
+            showToast('Withdrawal rejected', 'warning', '❌');
+            
+            render();
+            return { success: true };
+        }
+        
+        // ============================================
+        // BONUS & STREAK
+        // ============================================
+        
+        const STREAK_REWARDS = {
+            1: { points: 50, xp: 5 },
+            2: { points: 100, xp: 10 },
+            3: { points: 150, xp: 15 },
+            4: { points: 200, xp: 20 },
+            5: { points: 300, xp: 30 },
+            6: { points: 500, xp: 50 },
+            7: { points: 1000, xp: 200 }
+        };
+        
+        function claimDailyBonus() {
+            const user = getCurrentUser();
+            if (!user) return { success: false, message: 'Not authenticated' };
+            
+            const today = new Date().toDateString();
+            if (user.lastBonusClaim && new Date(user.lastBonusClaim).toDateString() === today) {
+                return { success: false, message: 'Already claimed today' };
+            }
+            
+            // Calculate streak
+            let newStreak = user.streakDays;
+            if (user.lastBonusClaim) {
+                const lastClaim = new Date(user.lastBonusClaim);
+                const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                
+                if (lastClaim.toDateString() === yesterday.toDateString()) {
+                    newStreak++;
+                } else {
+                    newStreak = 1;
+                }
+            } else {
+                newStreak = 1;
+            }
+            
+            const cycleDay = ((newStreak - 1) % 7) + 1;
+            const reward = STREAK_REWARDS[cycleDay];
+            
+            updateUser(user.id, {
+                pointsBalance: user.pointsBalance + reward.points,
+                totalPointsEarned: user.totalPointsEarned + reward.points,
+                xp: user.xp + reward.xp,
+                streakDays: newStreak,
+                lastBonusClaim: new Date().toISOString()
+            });
+            
+            addTransaction(user.id, 'daily_bonus', reward.points, `Day ${cycleDay} streak bonus`);
+            
+            emit('BONUS_CLAIMED', { userId: user.id, points: reward.points, streak: newStreak });
+            showToast(`Day ${cycleDay} bonus! +${reward.points} points`, 'success', '🎁');
+            
+            render();
+            return { success: true, points: reward.points, streak: newStreak };
+        }
+        
+        // ============================================
+        // ADMIN FUNCTIONS
+        // ============================================
+        
+        function sendAnnouncement(message, type) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            // Broadcast to all tabs
+            channel.postMessage({ 
+                type: 'ANNOUNCEMENT', 
+                data: { message, type, from: user.name }
+            });
+            
+            showToast('Announcement sent!', 'success', '📢');
+            return { success: true };
+        }
+        
+        function createTask(taskData) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            const tasks = getTasks();
+            const newTask = {
+                id: generateId(),
+                ...taskData,
+                isActive: true,
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(newTask);
+            setData(STORAGE_KEYS.TASKS, tasks);
+            
+            emit('TASK_UPDATE', { action: 'created', task: newTask });
+            showToast('Task created!', 'success', '✅');
+            
+            render();
+            return { success: true, task: newTask };
+        }
+        
+        function deleteTask(taskId) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            let tasks = getTasks();
+            tasks = tasks.filter(t => t.id !== taskId && t.taskId !== taskId);
+            setData(STORAGE_KEYS.TASKS, tasks);
+            
+            emit('TASK_UPDATE', { action: 'deleted', taskId });
+            showToast('Task deleted', 'warning', '🗑️');
+            
+            render();
+            return { success: true };
+        }
+        
+        function deleteUser(userId) {
+            const user = getCurrentUser();
+            if (!user || !user.isAdmin) return { success: false, message: 'Unauthorized' };
+            
+            let users = getData(STORAGE_KEYS.USERS, []);
+            users = users.filter(u => u.id !== userId);
+            setData(STORAGE_KEYS.USERS, users);
+            
+            emit('USER_DELETED', { userId });
+            showToast('User deleted', 'warning', '🗑️');
+            
+            render();
+            return { success: true };
+        }
+        
+        // ============================================
+        // RENDER FUNCTIONS
+        // ============================================
+        
+        let currentView = 'home';
+        
+        function render() {
+            const app = document.getElementById('app');
+            const user = getCurrentUser();
+            const theme = getTheme();
+            
+            // Apply theme
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            
+            if (!user) {
+                app.innerHTML = renderAuthScreen();
+            } else {
+                app.innerHTML = `
+                    ${renderHeader(user)}
+                    <main class="max-w-lg mx-auto p-4 pb-24">
+                        ${renderView(user)}
+                    </main>
+                    ${renderBottomNav(user)}
+                `;
+            }
+            
+            attachEventListeners();
+        }
+        
+        function renderAuthScreen() {
+            return `
+                <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);">
+                    <div class="card p-6 w-full max-w-md">
+                        <div class="text-center mb-6">
+                            <span class="text-5xl">🎰</span>
+                            <h1 class="text-3xl font-bold mt-2" style="color: var(--primary)">SpinWin</h1>
+                            <p class="text-gray-500">Spin, Earn, Withdraw Real Cash!</p>
+                        </div>
+                        
+                        <div class="flex mb-4">
+                            <button onclick="showLoginTab()" id="login-tab" class="flex-1 py-2 border-b-2 border-primary font-medium">Login</button>
+                            <button onclick="showRegisterTab()" id="register-tab" class="flex-1 py-2 border-b-2 border-transparent text-gray-500">Register</button>
+                        </div>
+                        
+                        <div id="login-form">
+                            <div class="space-y-4">
+                                <input type="email" id="login-email" placeholder="Email" class="w-full p-3 rounded-lg">
+                                <input type="password" id="login-password" placeholder="Password" class="w-full p-3 rounded-lg">
+                                <button onclick="handleLogin()" class="btn-primary w-full py-3 rounded-lg font-medium">Login</button>
+                            </div>
+                        </div>
+                        
+                        <div id="register-form" class="hidden">
+                            <div class="space-y-4">
+                                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-3 rounded-lg">
+                                <input type="email" id="reg-email" placeholder="Email" class="w-full p-3 rounded-lg">
+                                <input type="tel" id="reg-phone" placeholder="Phone (03xx-xxxxxxx)" class="w-full p-3 rounded-lg">
+                                <input type="password" id="reg-password" placeholder="Password (min 6 chars)" class="w-full p-3 rounded-lg">
+                                <input type="text" id="reg-referral" placeholder="Referral Code (optional)" class="w-full p-3 rounded-lg">
+                                <button onclick="handleRegister()" class="btn-primary w-full py-3 rounded-lg font-medium">Create Account</button>
+                            </div>
+                        </div>
+                        
+                        <p class="text-center text-sm text-gray-500 mt-4">
+                            Demo: saadking3132@gmail.com / Saadmalik99$
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderHeader(user) {
+            const level = user.level;
+            const onlineUsers = Math.floor(Math.random() * 50) + 10; // Simulated
+            
+            return `
+                <header class="sticky top-0 z-50 glass border-b">
+                    <div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎰</span>
+                            <h1 class="text-xl font-bold" style="color: var(--primary)">SpinWin</h1>
+                            <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Real-time connected"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm px-2 py-1 rounded-full" style="background: var(--accent); color: white;">
+                                👥 ${onlineUsers}
+                            </span>
+                            <span class="font-bold px-3 py-1 rounded-full" style="background: var(--beige);">
+                                🪙 ${user.pointsBalance.toLocaleString()}
+                            </span>
+                            <span class="text-sm">${LEVEL_EMOJIS[level]}</span>
+                            <button onclick="toggleTheme()" class="p-2 rounded-full" style="background: var(--beige);">
+                                ${getTheme() === 'dark' ? '☀️' : '🌙'}
+                            </button>
+                            <button onclick="logout()" class="p-2 rounded-full hover:bg-red-100">🚪</button>
+                        </div>
+                    </div>
+                </header>
+            `;
+        }
+        
+        function renderBottomNav(user) {
+            const navItems = [
+                { id: 'home', icon: '🏠', label: 'Home' },
+                { id: 'spin', icon: '🎰', label: 'Spin' },
+                { id: 'tasks', icon: '📋', label: 'Tasks' },
+                { id: 'wallet', icon: '💰', label: 'Wallet' },
+                { id: user.isAdmin ? 'admin' : 'profile', icon: user.isAdmin ? '⚙️' : '👤', label: user.isAdmin ? 'Admin' : 'Profile' }
+            ];
+            
+            return `
+                <nav class="fixed bottom-0 left-0 right-0 glass border-t">
+                    <div class="max-w-lg mx-auto flex justify-around py-2">
+                        ${navItems.map(item => `
+                            <button onclick="setView('${item.id}')" 
+                                class="flex flex-col items-center p-2 rounded-lg ${currentView === item.id ? 'bg-primary/10' : ''}"
+                                style="${currentView === item.id ? 'color: var(--primary)' : ''}">
+                                <span class="text-xl">${item.icon}</span>
+                                <span class="text-xs">${item.label}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </nav>
+            `;
+        }
+        
+        function renderView(user) {
+            switch (currentView) {
+                case 'home': return renderHomeView(user);
+                case 'spin': return renderSpinView(user);
+                case 'tasks': return renderTasksView(user);
+                case 'wallet': return renderWalletView(user);
+                case 'profile': return renderProfileView(user);
+                case 'admin': return renderAdminView(user);
+                case 'referral': return renderReferralView(user);
+                case 'achievements': return renderAchievementsView(user);
+                case 'leaderboard': return renderLeaderboardView(user);
+                default: return renderHomeView(user);
+            }
+        }
+        
+        function renderHomeView(user) {
+            const level = user.level;
+            const xpProgress = ((user.xp - LEVEL_XP[level]) / (LEVEL_XP[level + 1] - LEVEL_XP[level])) * 100;
+            
+            return `
+                <div class="space-y-4">
+                    <!-- Welcome Card -->
+                    <div class="card p-6" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-2xl font-bold">Welcome, ${user.name}! 👋</h2>
+                        <p class="opacity-80">Let's spin and win today!</p>
+                        <div class="mt-4">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>${LEVEL_EMOJIS[level]} ${LEVEL_NAMES[level]}</span>
+                                <span>${user.xp} XP</span>
+                            </div>
+                            <div class="h-2 rounded-full" style="background: rgba(255,255,255,0.3);">
+                                <div class="h-full rounded-full bg-white" style="width: ${xpProgress}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="card p-4 text-center">
+                            <p class="text-3xl font-bold" style="color: var(--primary)">${user.dailySpinsRemaining}</p>
+                            <p class="text-sm text-gray-500">Spins Left</p>
+                        </div>
+                        <div class="card p-4 text-center">
+                            <p class="text-3xl font-bold" style="color: var(--primary)">Rs. ${(user.pointsBalance * 0.1).toFixed(0)}</p>
+                            <p class="text-sm text-gray-500">Balance</p>
+                        </div>
+                        <div class="card p-4 text-center">
+                            <p class="text-3xl font-bold" style="color: var(--primary)">${user.streakDays}</p>
+                            <p class="text-sm text-gray-500">Day Streak 🔥</p>
+                        </div>
+                        <div class="card p-4 text-center">
+                            <p class="text-3xl font-bold" style="color: var(--primary)">${user.totalSpinsCompleted}</p>
+                            <p class="text-sm text-gray-500">Total Spins</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Daily Bonus -->
+                    <div class="card p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold">Daily Bonus</h3>
+                                <p class="text-sm text-gray-500">Day ${((user.streakDays) % 7) + 1} reward awaits!</p>
+                            </div>
+                            <button onclick="claimDailyBonus()" class="btn-primary px-4 py-2 rounded-lg">Claim 🎁</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="setView('referral')" class="card p-4 text-center hover:opacity-80">
+                            <span class="text-2xl">👥</span>
+                            <p class="text-sm mt-1">Refer</p>
+                        </button>
+                        <button onclick="setView('achievements')" class="card p-4 text-center hover:opacity-80">
+                            <span class="text-2xl">🏆</span>
+                            <p class="text-sm mt-1">Badges</p>
+                        </button>
+                        <button onclick="setView('leaderboard')" class="card p-4 text-center hover:opacity-80">
+                            <span class="text-2xl">📊</span>
+                            <p class="text-sm mt-1">Rank</p>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderSpinView(user) {
+            const segments = WHEEL_SEGMENTS.map((seg, i) => {
+                const angle = (i * 30) - 90;
+                return `
+                    <div style="
+                        position: absolute;
+                        width: 50%;
+                        height: 50%;
+                        left: 50%;
+                        top: 0;
+                        transform-origin: 0% 100%;
+                        transform: rotate(${angle}deg);
+                        background: ${seg.color};
+                        clip-path: polygon(0 100%, 100% 0, 0 0);
+                    ">
+                        <span style="
+                            position: absolute;
+                            left: 20%;
+                            top: 30%;
+                            transform: rotate(60deg);
+                            font-size: 10px;
+                            font-weight: bold;
+                            color: ${seg.points >= 300 ? '#000' : '#fff'};
+                        ">${seg.label}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-6 text-center">
+                        <h2 class="text-2xl font-bold mb-2">🎰 Spin the Wheel!</h2>
+                        <p class="text-gray-500 mb-4">${user.dailySpinsRemaining} spins remaining today</p>
+                        
+                        <div class="relative w-64 h-64 mx-auto mb-6">
+                            <!-- Pointer -->
+                            <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-10 text-3xl">▼</div>
+                            
+                            <!-- Wheel -->
+                            <div id="spin-wheel" class="spin-wheel w-full h-full rounded-full relative overflow-hidden border-4 border-gray-300" style="transform: rotate(0deg);">
+                                ${segments}
+                                <div class="absolute inset-1/3 rounded-full" style="background: var(--primary);"></div>
+                            </div>
+                        </div>
+                        
+                        <button id="spin-btn" onclick="handleSpin()" 
+                            class="btn-primary w-full py-4 rounded-xl text-xl font-bold ${user.dailySpinsRemaining <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                            ${user.dailySpinsRemaining <= 0 ? 'disabled' : ''}>
+                            ${user.dailySpinsRemaining > 0 ? 'SPIN NOW!' : 'Come Back Tomorrow!'}
+                        </button>
+                    </div>
+                    
+                    <!-- Spin History -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">Recent Spins</h3>
+                        <div class="space-y-2">
+                            ${getData(STORAGE_KEYS.SPIN_LOGS, []).filter(l => l.userId === user.id).slice(0, 5).map(log => `
+                                <div class="flex justify-between p-2 rounded" style="background: var(--beige);">
+                                    <span>${log.pointsWon > 0 ? '🎉' : '😢'} ${log.pointsWon} points</span>
+                                    <span class="text-sm text-gray-500">${new Date(log.createdAt).toLocaleTimeString()}</span>
+                                </div>
+                            `).join('') || '<p class="text-gray-500 text-center">No spins yet</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderTasksView(user) {
+            const tasks = getTasks();
+            const transactions = getData(STORAGE_KEYS.TRANSACTIONS, []);
+            const today = new Date().toDateString();
+            
+            const dailyTasks = tasks.filter(t => t.type === 'daily' && t.isActive);
+            const onetimeTasks = tasks.filter(t => t.type === 'onetime' && t.isActive);
+            const weeklyTasks = tasks.filter(t => t.type === 'weekly' && t.isActive);
+            
+            function isTaskCompleted(task) {
+                if (task.type === 'daily') {
+                    return transactions.some(t => t.userId === user.id && t.reference === task.id && new Date(t.createdAt).toDateString() === today);
+                } else {
+                    return transactions.some(t => t.userId === user.id && t.reference === task.id);
+                }
+            }
+            
+            function renderTaskItem(task) {
+                const completed = isTaskCompleted(task);
+                return `
+                    <div class="card p-4 ${completed ? 'opacity-60' : ''}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">${task.type === 'daily' ? '📅' : task.type === 'weekly' ? '📆' : '⭐'}</span>
+                                <div>
+                                    <h4 class="font-medium">${task.name}</h4>
+                                    <p class="text-sm text-gray-500">${task.description}</p>
+                                    <span class="text-sm font-medium" style="color: var(--primary)">+${task.pointsReward} pts</span>
+                                    ${task.link ? `<a href="${task.link}" target="_blank" class="text-xs text-blue-500 ml-2">Open Link ↗</a>` : ''}
+                                </div>
+                            </div>
+                            <button onclick="completeTask('${task.id}')" 
+                                class="btn-primary px-4 py-2 rounded-lg ${completed ? 'opacity-50' : ''}"
+                                ${completed ? 'disabled' : ''}>
+                                ${completed ? '✓ Done' : 'Claim'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-4" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-xl font-bold">📋 Tasks</h2>
+                        <p class="opacity-80">Complete tasks to earn points!</p>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold mb-2">📅 Daily Tasks</h3>
+                        <div class="space-y-2">${dailyTasks.map(renderTaskItem).join('')}</div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold mb-2">⭐ One-Time Tasks</h3>
+                        <div class="space-y-2">${onetimeTasks.map(renderTaskItem).join('')}</div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-bold mb-2">📆 Weekly Tasks</h3>
+                        <div class="space-y-2">${weeklyTasks.map(renderTaskItem).join('')}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderWalletView(user) {
+            const withdrawals = getData(STORAGE_KEYS.WITHDRAWALS, []).filter(w => w.userId === user.id);
+            const transactions = getData(STORAGE_KEYS.TRANSACTIONS, []).filter(t => t.userId === user.id).slice(0, 10);
+            
+            return `
+                <div class="space-y-4">
+                    <!-- Balance Card -->
+                    <div class="card p-6" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <p class="opacity-80">Total Balance</p>
+                        <h2 class="text-4xl font-bold">${user.pointsBalance.toLocaleString()} pts</h2>
+                        <p class="text-xl opacity-80">≈ Rs. ${(user.pointsBalance * 0.1).toFixed(0)}</p>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="setView('home')" class="flex-1 bg-white/20 py-2 rounded-lg">Earn More</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Withdrawal Form -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">💸 Request Withdrawal</h3>
+                        ${user.pointsBalance < 3000 ? `
+                            <p class="text-gray-500 text-center py-4">Minimum 3,000 points (Rs. 300) required for withdrawal</p>
+                            <div class="h-2 rounded-full" style="background: var(--beige);">
+                                <div class="h-full rounded-full" style="background: var(--primary); width: ${(user.pointsBalance / 3000) * 100}%"></div>
+                            </div>
+                            <p class="text-sm text-center mt-2">${(3000 - user.pointsBalance)} more points needed</p>
+                        ` : `
+                            <div class="space-y-3">
+                                <select id="withdraw-method" class="w-full p-3 rounded-lg">
+                                    <option value="easypaisa">Easypaisa</option>
+                                    <option value="jazzcash">JazzCash</option>
+                                    <option value="bank">Bank Transfer</option>
+                                </select>
+                                <input type="number" id="withdraw-points" placeholder="Points to withdraw (min 3000)" class="w-full p-3 rounded-lg" min="3000" max="${user.pointsBalance}">
+                                <input type="text" id="withdraw-account" placeholder="Account Number" class="w-full p-3 rounded-lg">
+                                <input type="text" id="withdraw-cnic" placeholder="CNIC Last 6 Digits" class="w-full p-3 rounded-lg" maxlength="6">
+                                <button onclick="handleWithdraw()" class="btn-primary w-full py-3 rounded-lg font-medium">Request Withdrawal</button>
+                            </div>
+                        `}
+                    </div>
+                    
+                    <!-- Transaction History -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">📜 Transaction History</h3>
+                        <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
+                            ${transactions.map(t => `
+                                <div class="flex justify-between p-2 rounded" style="background: var(--beige);">
+                                    <div>
+                                        <p class="font-medium">${t.description}</p>
+                                        <p class="text-xs text-gray-500">${new Date(t.createdAt).toLocaleString()}</p>
+                                    </div>
+                                    <span class="${t.points > 0 ? 'text-green-600' : 'text-red-500'} font-bold">
+                                        ${t.points > 0 ? '+' : ''}${t.points}
+                                    </span>
+                                </div>
+                            `).join('') || '<p class="text-gray-500 text-center">No transactions yet</p>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Withdrawal History -->
+                    ${withdrawals.length > 0 ? `
+                        <div class="card p-4">
+                            <h3 class="font-bold mb-3">🏦 Withdrawal History</h3>
+                            <div class="space-y-2">
+                                ${withdrawals.map(w => `
+                                    <div class="flex justify-between p-2 rounded" style="background: var(--beige);">
+                                        <div>
+                                            <p class="font-medium">Rs. ${w.rsAmount} via ${w.method}</p>
+                                            <p class="text-xs text-gray-500">${new Date(w.createdAt).toLocaleString()}</p>
+                                        </div>
+                                        <span class="px-2 py-1 rounded text-xs ${
+                                            w.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                                            w.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                                            'bg-yellow-100 text-yellow-800'
+                                        }">${w.status}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function renderProfileView(user) {
+            return `
+                <div class="space-y-4">
+                    <div class="card p-6 text-center">
+                        <div class="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl" style="background: var(--accent);">
+                            ${LEVEL_EMOJIS[user.level]}
+                        </div>
+                        <h2 class="text-2xl font-bold mt-3">${user.name}</h2>
+                        <p class="text-gray-500">${user.email}</p>
+                        <p class="text-sm mt-1">${LEVEL_EMOJIS[user.level]} ${LEVEL_NAMES[user.level]} • ${user.xp} XP</p>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">📊 Your Stats</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="p-3 rounded text-center" style="background: var(--beige);">
+                                <p class="text-2xl font-bold">${user.totalPointsEarned.toLocaleString()}</p>
+                                <p class="text-sm text-gray-500">Total Earned</p>
+                            </div>
+                            <div class="p-3 rounded text-center" style="background: var(--beige);">
+                                <p class="text-2xl font-bold">${user.totalSpinsCompleted}</p>
+                                <p class="text-sm text-gray-500">Total Spins</p>
+                            </div>
+                            <div class="p-3 rounded text-center" style="background: var(--beige);">
+                                <p class="text-2xl font-bold">${user.streakDays}</p>
+                                <p class="text-sm text-gray-500">Day Streak 🔥</p>
+                            </div>
+                            <div class="p-3 rounded text-center" style="background: var(--beige);">
+                                <p class="text-2xl font-bold">Rs. ${(user.totalPointsWithdrawn * 0.1).toFixed(0)}</p>
+                                <p class="text-sm text-gray-500">Withdrawn</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">🔗 Your Referral Code</h3>
+                        <div class="flex items-center gap-2">
+                            <input type="text" value="${user.referralCode}" readonly class="flex-1 p-3 rounded-lg font-mono text-center text-xl">
+                            <button onclick="copyReferralCode('${user.referralCode}')" class="btn-primary p-3 rounded-lg">📋</button>
+                        </div>
+                        <p class="text-sm text-gray-500 text-center mt-2">Share and earn 500 points per referral!</p>
+                    </div>
+                    
+                    <button onclick="logout()" class="w-full py-3 rounded-lg border border-red-500 text-red-500 font-medium">
+                        Logout
+                    </button>
+                </div>
+            `;
+        }
+        
+        function renderAdminView(user) {
+            if (!user.isAdmin) {
+                return `<div class="text-center py-12"><p class="text-gray-500">Access denied</p></div>`;
+            }
+            
+            const users = getData(STORAGE_KEYS.USERS, []);
+            const withdrawals = getData(STORAGE_KEYS.WITHDRAWALS, []);
+            const tasks = getTasks();
+            const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending');
+            const processedWithdrawals = withdrawals.filter(w => w.status !== 'pending');
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-4" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-xl font-bold">⚙️ Admin Dashboard</h2>
+                        <p class="opacity-80">Manage users, tasks, and withdrawals</p>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="card p-4 text-center">
+                            <p class="text-2xl font-bold">${users.length}</p>
+                            <p class="text-sm text-gray-500">Total Users</p>
+                        </div>
+                        <div class="card p-4 text-center">
+                            <p class="text-2xl font-bold">${pendingWithdrawals.length}</p>
+                            <p class="text-sm text-gray-500">Pending Withdrawals</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Send Announcement -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">📢 Send Announcement</h3>
+                        <textarea id="announcement-msg" placeholder="Type your message..." class="w-full p-3 rounded-lg" rows="2"></textarea>
+                        <div class="flex gap-2 mt-2">
+                            <select id="announcement-type" class="p-2 rounded-lg">
+                                <option value="info">Info</option>
+                                <option value="success">Success</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                            <button onclick="handleAnnouncement()" class="btn-primary flex-1 py-2 rounded-lg">Send to All</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Pending Withdrawals -->
+                    ${pendingWithdrawals.length > 0 ? `
+                        <div class="card p-4">
+                            <h3 class="font-bold mb-3">⏳ Pending Withdrawals</h3>
+                            <div class="space-y-2">
+                                ${pendingWithdrawals.map(w => `
+                                    <div class="p-3 rounded" style="background: var(--beige);">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <p class="font-medium">${w.userName}</p>
+                                                <p class="text-sm text-gray-500">${w.userEmail}</p>
+                                                <p class="font-bold" style="color: var(--primary)">Rs. ${w.rsAmount} (${w.pointsRequested} pts)</p>
+                                                <p class="text-sm">${w.method} - ${w.accountNumber}</p>
+                                            </div>
+                                            <div class="flex gap-1">
+                                                <button onclick="approveWithdrawal('${w.id}')" class="bg-green-500 text-white px-3 py-1 rounded text-sm">✓</button>
+                                                <button onclick="rejectWithdrawalWithNote('${w.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm">✗</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- All Users -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">👥 All Users (${users.length})</h3>
+                        <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
+                            ${users.map(u => `
+                                <div class="flex items-center justify-between p-2 rounded" style="background: var(--beige);">
+                                    <div class="flex items-center gap-2">
+                                        <span>${LEVEL_EMOJIS[u.level]}</span>
+                                        <div>
+                                            <p class="font-medium">${u.name} ${u.isAdmin ? '<span class="text-xs bg-primary text-white px-1 rounded">ADMIN</span>' : ''}</p>
+                                            <p class="text-sm text-gray-500">${u.email}</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-bold">${u.pointsBalance.toLocaleString()} pts</p>
+                                        ${!u.isAdmin ? `<button onclick="deleteUser('${u.id}')" class="text-xs text-red-500">Delete</button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Manage Tasks -->
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">📋 Manage Tasks (${tasks.length})</h3>
+                        <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
+                            ${tasks.map(t => `
+                                <div class="flex items-center justify-between p-2 rounded" style="background: var(--beige);">
+                                    <div>
+                                        <p class="font-medium">${t.name}</p>
+                                        <p class="text-sm text-gray-500">+${t.pointsReward} pts • ${t.type}</p>
+                                    </div>
+                                    <button onclick="deleteTask('${t.id}')" class="text-red-500 text-sm">Delete</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderReferralView(user) {
+            const referrals = getData(STORAGE_KEYS.REFERRALS, []).filter(r => r.referrerId === user.id);
+            const users = getData(STORAGE_KEYS.USERS, []);
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-6 text-center" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-xl font-bold">👥 Refer & Earn</h2>
+                        <p class="opacity-80">Get 500 points for each friend!</p>
+                    </div>
+                    
+                    <div class="card p-6 text-center">
+                        <p class="text-gray-500 mb-2">Your Referral Code</p>
+                        <p class="text-4xl font-mono font-bold" style="color: var(--primary)">${user.referralCode}</p>
+                        <button onclick="copyReferralCode('${user.referralCode}')" class="btn-primary mt-4 px-6 py-2 rounded-lg">
+                            📋 Copy Code
+                        </button>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">How It Works</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3 p-2 rounded" style="background: var(--beige);">
+                                <span class="text-2xl">1️⃣</span>
+                                <p>Share your code with friends</p>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded" style="background: var(--beige);">
+                                <span class="text-2xl">2️⃣</span>
+                                <p>Friend signs up with your code</p>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded" style="background: var(--beige);">
+                                <span class="text-2xl">3️⃣</span>
+                                <p>Friend completes 10 spins</p>
+                            </div>
+                            <div class="flex items-center gap-3 p-2 rounded" style="background: var(--beige);">
+                                <span class="text-2xl">4️⃣</span>
+                                <p>You both get 500 points!</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-3">Your Referrals (${referrals.length})</h3>
+                        ${referrals.length > 0 ? `
+                            <div class="space-y-2">
+                                ${referrals.map(r => {
+                                    const referredUser = users.find(u => u.id === r.referredId);
+                                    return `
+                                        <div class="flex justify-between p-2 rounded" style="background: var(--beige);">
+                                            <span>${referredUser?.name || 'Pending...'}</span>
+                                            <span class="${r.status === 'rewarded' ? 'text-green-500' : 'text-yellow-500'}">${r.status}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : '<p class="text-gray-500 text-center">No referrals yet. Share your code!</p>'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderAchievementsView(user) {
+            const achievements = getData(STORAGE_KEYS.ACHIEVEMENTS, []);
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-6 text-center" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-xl font-bold">🏆 Achievements</h2>
+                        <p class="opacity-80">Unlock badges and earn rewards!</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3">
+                        ${achievements.map(a => {
+                            const unlocked = user.totalSpinsCompleted >= 100 && a.badgeId === 'spin_100' ||
+                                           user.totalSpinsCompleted >= 1 && a.badgeId === 'first_spin' ||
+                                           user.level >= 5 && a.badgeId === 'level_5' ||
+                                           user.streakDays >= 7 && a.badgeId === 'streak_7';
+                            return `
+                                <div class="card p-4 text-center ${unlocked ? '' : 'opacity-50'}">
+                                    <span class="text-3xl">${a.icon}</span>
+                                    <p class="font-medium text-sm mt-2">${a.name}</p>
+                                    <p class="text-xs text-gray-500">${a.pointsReward} pts</p>
+                                    ${unlocked ? '<span class="text-xs text-green-500">✓ Unlocked</span>' : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLeaderboardView(user) {
+            const users = getData(STORAGE_KEYS.USERS, [])
+                .sort((a, b) => b.totalPointsEarned - a.totalPointsEarned)
+                .slice(0, 10);
+            
+            return `
+                <div class="space-y-4">
+                    <div class="card p-6 text-center" style="background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white;">
+                        <h2 class="text-xl font-bold">📊 Leaderboard</h2>
+                        <p class="opacity-80">Top earners this week</p>
+                    </div>
+                    
+                    <!-- Podium -->
+                    <div class="flex items-end justify-center gap-2 mb-4">
+                        ${users[1] ? `
+                            <div class="card p-3 text-center w-20">
+                                <span class="text-2xl">🥈</span>
+                                <p class="font-medium text-sm truncate">${users[1].name}</p>
+                                <p class="text-xs text-gray-500">${users[1].totalPointsEarned}</p>
+                            </div>
+                        ` : ''}
+                        ${users[0] ? `
+                            <div class="card p-4 text-center w-24" style="background: var(--accent); color: white;">
+                                <span class="text-3xl">🥇</span>
+                                <p class="font-medium truncate">${users[0].name}</p>
+                                <p class="text-sm">${users[0].totalPointsEarned}</p>
+                            </div>
+                        ` : ''}
+                        ${users[2] ? `
+                            <div class="card p-3 text-center w-20">
+                                <span class="text-2xl">🥉</span>
+                                <p class="font-medium text-sm truncate">${users[2].name}</p>
+                                <p class="text-xs text-gray-500">${users[2].totalPointsEarned}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Full List -->
+                    <div class="card p-4">
+                        <div class="space-y-2">
+                            ${users.map((u, i) => `
+                                <div class="flex items-center justify-between p-2 rounded ${u.id === user.id ? 'border-2 border-primary' : ''}" style="background: var(--beige);">
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold w-6">${i + 1}.</span>
+                                        <span>${LEVEL_EMOJIS[u.level]}</span>
+                                        <span class="font-medium">${u.name}</span>
+                                    </div>
+                                    <span class="font-bold">${u.totalPointsEarned.toLocaleString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // EVENT HANDLERS
+        // ============================================
+        
+        function showLoginTab() {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-tab').classList.add('border-primary');
+            document.getElementById('register-tab').classList.remove('border-primary');
+        }
+        
+        function showRegisterTab() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('login-tab').classList.remove('border-primary');
+            document.getElementById('register-tab').classList.add('border-primary');
+        }
+        
+        function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const result = login(email, password);
+            if (result.success) {
+                render();
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+        
+        function handleRegister() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const phone = document.getElementById('reg-phone').value;
+            const password = document.getElementById('reg-password').value;
+            const referral = document.getElementById('reg-referral').value;
+            
+            if (!name || !email || !password) {
+                showToast('Please fill all required fields', 'error');
+                return;
+            }
+            
+            const result = register(name, email, phone, password, referral);
+            if (result.success) {
+                render();
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+        
+        let isSpinning = false;
+        
+        function handleSpin() {
+            if (isSpinning) return;
+            
+            const result = spinWheel();
+            if (!result.success) {
+                showToast(result.message, 'warning');
+                return;
+            }
+            
+            isSpinning = true;
+            const wheel = document.getElementById('spin-wheel');
+            const btn = document.getElementById('spin-btn');
+            btn.disabled = true;
+            btn.textContent = 'Spinning...';
+            
+            const segmentAngle = 360 / WHEEL_SEGMENTS.length;
+            const targetAngle = 360 - (result.segmentIndex * segmentAngle) - (segmentAngle / 2);
+            const totalRotation = 360 * 5 + targetAngle; // 5 full rotations + target
+            
+            wheel.style.transform = `rotate(${totalRotation}deg)`;
+            
+            setTimeout(() => {
+                isSpinning = false;
+                btn.disabled = false;
+                
+                if (result.pointsWon > 0) {
+                    if (result.isJackpot) {
+                        showToast(`🎰 JACKPOT! You won ${result.pointsWon} points!`, 'success', '🎉');
+                    } else {
+                        showToast(`🎉 You won ${result.pointsWon} points!`, 'success', '🎉');
+                    }
+                } else {
+                    showToast('Try again! Better luck next time!', 'info', '😢');
+                }
+                
+                render();
+            }, 4000);
+        }
+        
+        function handleWithdraw() {
+            const method = document.getElementById('withdraw-method').value;
+            const points = parseInt(document.getElementById('withdraw-points').value);
+            const account = document.getElementById('withdraw-account').value;
+            const cnic = document.getElementById('withdraw-cnic').value;
+            
+            if (!points || !account) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            
+            const result = requestWithdrawal(method, points, account, cnic);
+            if (!result.success) {
+                showToast(result.message, 'error');
+            }
+        }
+        
+        function handleAnnouncement() {
+            const msg = document.getElementById('announcement-msg').value;
+            const type = document.getElementById('announcement-type').value;
+            
+            if (!msg.trim()) {
+                showToast('Please enter a message', 'error');
+                return;
+            }
+            
+            sendAnnouncement(msg, type);
+            document.getElementById('announcement-msg').value = '';
+        }
+        
+        function rejectWithdrawalWithNote(id) {
+            const note = prompt('Enter rejection reason:');
+            if (note) {
+                rejectWithdrawal(id, note);
+            }
+        }
+        
+        function copyReferralCode(code) {
+            navigator.clipboard.writeText(code);
+            showToast('Referral code copied!', 'success', '📋');
+        }
+        
+        function setView(view) {
+            currentView = view;
+            render();
+        }
+        
+        function attachEventListeners() {
+            // Add keyboard event for login/register
+            document.querySelectorAll('#login-form input, #register-form input').forEach(input => {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        if (input.closest('#login-form')) {
+                            handleLogin();
+                        } else {
+                            handleRegister();
+                        }
+                    }
+                });
+            });
+        }
+        
+        // ============================================
+        // INITIALIZE APP
+        // ============================================
+        
+        // Initialize data and render
+        initializeData();
+        
+        // Listen for real-time events
+        on('SPIN_RESULT', (data) => {
+            // Refresh if it's another user's big win
+            if (data.pointsWon >= 500) {
+                showToast(`🎰 Someone hit JACKPOT! ${data.pointsWon} points!`, 'info', '🎉');
+            }
+        });
+        
+        on('ANNOUNCEMENT', (data) => {
+            showToast(data.message, data.type);
+        });
+        
+        // Initial render
+        render();
+        
+        // Simulate online users count updates
+        setInterval(() => {
+            const onlineEl = document.querySelector('[title="Real-time connected"]')?.parentElement?.querySelector('span');
+            if (onlineEl) {
+                const count = Math.floor(Math.random() * 50) + 10;
+                onlineEl.textContent = `👥 ${count}`;
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
