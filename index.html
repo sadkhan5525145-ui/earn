@@ -1,1 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpinWin - Earn Points, Win Rewards!</title>
+    <meta name="description" content="SpinWin - Spin the wheel, complete tasks, and win rewards!">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%236b7a5f' rx='20' width='100' height='100'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>S</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        olive: {
+                            50: '#f4f5f0',
+                            100: '#e8ebe3',
+                            200: '#d1d7c7',
+                            300: '#b3bda3',
+                            400: '#95a47d',
+                            500: '#7a8a5f',
+                            600: '#6b7a5f',
+                            700: '#5a6b4a',
+                            800: '#4a5a3d',
+                            900: '#3d4a32',
+                        },
+                        accent: {
+                            orange: '#FF8C42',
+                            orangeHover: '#E67A35',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        .wheel-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+        
+        @media (min-width: 400px) {
+            .wheel-container { width: 320px; height: 320px; }
+        }
+        
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(107, 122, 95, 0.3), inset 0 0 20px rgba(0,0,0,0.15);
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+        
+        .wheel-segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            transform-origin: 100% 100%;
+            clip-path: polygon(0 0, 100% 0, 100% 100%);
+        }
+        
+        .wheel-segment span {
+            position: absolute;
+            font-weight: 700;
+            font-size: 11px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            transform: rotate(22.5deg) translateY(-48px);
+        }
+        
+        @media (min-width: 400px) {
+            .wheel-segment span { font-size: 12px; transform: rotate(22.5deg) translateY(-55px); }
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-top: 30px solid #FF8C42;
+            z-index: 10;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.25));
+        }
+        
+        .wheel-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #FF8C42, #E67A35);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(255, 140, 66, 0.4);
+            z-index: 5;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        
+        .wheel-center:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            box-shadow: 0 6px 20px rgba(255, 140, 66, 0.5);
+        }
+        
+        .wheel-center:active { transform: translate(-50%, -50%) scale(0.95); }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            animation: confetti-fall 3s linear forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        .slide-up { animation: slideUp 0.25s ease-out; }
+        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .online-dot { animation: onlinePulse 1.5s infinite; }
+        @keyframes onlinePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #95a47d; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-olive-50 min-h-screen">
+    <div id="app"></div>
+    <div id="toast" class="fixed top-16 right-3 z-50 flex flex-col gap-2 max-w-xs"></div>
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/40" onclick="closeModal()"></div>
+        <div id="modalContent" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl max-w-md w-[90%] max-h-[85vh] overflow-y-auto"></div>
+    </div>
+
+    <script>
+        // ===================== CONFIG =====================
+        const DB_KEY = 'spinwin_final_v1';
+        const SYNC_CHANNEL = 'spinwin_sync_v1';
+        const VERSION = '1.0.0';
+        const ADMIN_EMAIL = 'saadking3132@gmail.com';
+        const ADMIN_PASS = 'admin123';
+        
+        const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(SYNC_CHANNEL) : null;
+        
+        // ===================== DATA =====================
+        function getDefaultTasks() {
+            return [
+                { id: 1, title: 'Daily Login', desc: 'Login daily', pts: 10, icon: '👋', done: false },
+                { id: 2, title: 'Watch Video', desc: 'Watch ad video', pts: 25, icon: '📺', done: false },
+                { id: 3, title: 'Complete Survey', desc: 'Answer survey', pts: 50, icon: '📝', done: false },
+                { id: 4, title: 'Invite Friend', desc: 'Refer a friend', pts: 100, icon: '👥', done: false },
+                { id: 5, title: 'Social Share', desc: 'Share on social', pts: 30, icon: '🔗', done: false },
+                { id: 6, title: '10 Spins', desc: 'Complete 10 spins', pts: 75, icon: '🎰', done: false },
+                { id: 7, title: 'Download App', desc: 'Download partner app', pts: 200, icon: '📱', done: false },
+                { id: 8, title: 'Verify Email', desc: 'Verify your email', pts: 150, icon: '✉️', done: false },
+            ];
+        }
+        
+        function newUser(email, pass, name, refBy = null) {
+            const now = new Date().toISOString();
+            return {
+                id: 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
+                email: email.toLowerCase(),
+                pass: pass,
+                name: name,
+                phone: '',
+                pts: 100,
+                totalEarned: 100,
+                spins: 0,
+                spinsToday: 0,
+                lastSpinReset: new Date().toDateString(),
+                level: 1,
+                refCode: 'SPIN' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                refBy: refBy,
+                refs: [],
+                badges: [],
+                txns: [{ id: 't_' + Date.now(), type: 'earn', amt: 100, desc: '🎁 Welcome bonus!', time: now }],
+                wds: [],
+                tasks: getDefaultTasks(),
+                stats: { bigWin: 0, jpWins: 0 },
+                isAdmin: email.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+                created: now,
+                lastLogin: now
+            };
+        }
+        
+        function getDefaultData() {
+            return {
+                ver: VERSION,
+                currUser: null,
+                users: [],
+                jp: { amt: 10000, lastWon: null, players: 0 },
+                wds: [],
+                announces: [],
+                stats: { users: 0, spins: 0, earned: 0 }
+            };
+        }
+        
+        function loadData() {
+            try {
+                const s = localStorage.getItem(DB_KEY);
+                if (s) {
+                    const d = JSON.parse(s);
+                    return { ...getDefaultData(), ...d };
+                }
+            } catch(e) { console.error(e); }
+            return getDefaultData();
+        }
+        
+        function saveData() {
+            try {
+                localStorage.setItem(DB_KEY, JSON.stringify(data));
+                if (syncChannel) syncChannel.postMessage({ type: 'update', data });
+            } catch(e) { console.error(e); }
+        }
+        
+        let data = loadData();
+        let user = null;
+        
+        function getUser() {
+            if (!data.currUser) return null;
+            return data.users.find(u => u.id === data.currUser);
+        }
+        
+        function updateUser(updates) {
+            const idx = data.users.findIndex(u => u.id === data.currUser);
+            if (idx !== -1) {
+                data.users[idx] = { ...data.users[idx], ...updates };
+                user = data.users[idx];
+                saveData();
+            }
+        }
+        
+        if (syncChannel) {
+            syncChannel.onmessage = (e) => {
+                if (e.data.type === 'update') {
+                    data = e.data.data;
+                    user = getUser();
+                    if (data.currUser) render();
+                }
+            };
+        }
+        
+        // ===================== RENDER =====================
+        function $(id) { return document.getElementById(id); }
+        
+        function render() {
+            const app = $('app');
+            if (!user) {
+                app.innerHTML = renderAuth();
+            } else {
+                app.innerHTML = renderMain();
+            }
+        }
+        
+        // ===================== AUTH =====================
+        function renderAuth() {
+            return `
+            <div class="min-h-screen bg-gradient-to-br from-olive-600 to-olive-800 flex items-center justify-center p-4">
+                <div class="w-full max-w-md">
+                    <div class="text-center mb-6">
+                        <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                            <span class="text-4xl">🎰</span>
+                        </div>
+                        <h1 class="text-3xl font-bold text-white">SpinWin</h1>
+                        <p class="text-olive-200 mt-1">Spin. Earn. Withdraw!</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-xl p-5">
+                        <div class="flex mb-4 bg-olive-100 rounded-lg p-1">
+                            <button onclick="showAuthTab('login')" id="loginTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-white text-olive-800 shadow">Login</button>
+                            <button onclick="showAuthTab('signup')" id="signupTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-olive-600">Sign Up</button>
+                        </div>
+                        
+                        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" id="loginEmail" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="your@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="loginPass" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="••••••••">
+                            </div>
+                            <button type="submit" class="w-full bg-olive-600 hover:bg-olive-700 text-white font-semibold py-3 rounded-lg transition">Login</button>
+                            <p class="text-xs text-gray-500 text-center">Admin: ${ADMIN_EMAIL} / ${ADMIN_PASS}</p>
+                        </form>
+                        
+                        <form id="signupForm" onsubmit="handleSignup(event)" class="space-y-3 hidden">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <input type="text" id="regName" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="Your Name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" id="regEmail" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="your@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="regPass" required minlength="6" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="Min 6 characters">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Referral Code (Optional)</label>
+                                <input type="text" id="regRef" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="SPINXXXXXX">
+                            </div>
+                            <button type="submit" class="w-full bg-accent-orange hover:bg-accent-orangeHover text-white font-semibold py-3 rounded-lg transition">Create Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        function showAuthTab(tab) {
+            const lf = $('loginForm'), sf = $('signupForm');
+            const lt = $('loginTab'), st = $('signupTab');
+            if (tab === 'login') {
+                lf.classList.remove('hidden'); sf.classList.add('hidden');
+                lt.classList.add('bg-white', 'text-olive-800', 'shadow'); lt.classList.remove('text-olive-600');
+                st.classList.remove('bg-white', 'text-olive-800', 'shadow'); st.classList.add('text-olive-600');
+            } else {
+                lf.classList.add('hidden'); sf.classList.remove('hidden');
+                st.classList.add('bg-white', 'text-olive-800', 'shadow'); st.classList.remove('text-olive-600');
+                lt.classList.remove('bg-white', 'text-olive-800', 'shadow'); lt.classList.add('text-olive-600');
+            }
+        }
+        
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = $('loginEmail').value;
+            const pass = $('loginPass').value;
+            
+            if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASS) {
+                let admin = data.users.find(u => u.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+                if (!admin) {
+                    admin = newUser(ADMIN_EMAIL, ADMIN_PASS, 'Saad King (Admin)');
+                    admin.isAdmin = true;
+                    admin.name = 'Saad King (Admin)';
+                    admin.pts = 999999;
+                    admin.totalEarned = 999999;
+                    data.users.push(admin);
+                }
+                admin.lastLogin = new Date().toISOString();
+                data.currUser = admin.id;
+                user = admin;
+                saveData();
+                toast('Welcome Admin! 👑', 'success');
+                render();
+                return;
+            }
+            
+            const u = data.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
+            if (u) {
+                u.lastLogin = new Date().toISOString();
+                data.currUser = u.id;
+                user = u;
+                saveData();
+                toast(`Welcome back, ${u.name}!`, 'success');
+                render();
+            } else {
+                toast('Invalid email or password', 'error');
+            }
+        }
+        
+        function handleSignup(e) {
+            e.preventDefault();
+            const name = $('regName').value;
+            const email = $('regEmail').value;
+            const pass = $('regPass').value;
+            const ref = $('regRef').value;
+            
+            if (data.users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+                toast('Email already exists', 'error');
+                return;
+            }
+            
+            const nu = newUser(email, pass, name, ref || null);
+            
+            if (ref) {
+                const refUser = data.users.find(u => u.refCode === ref.toUpperCase());
+                if (refUser) {
+                    refUser.refs.push(nu.id);
+                    refUser.pts += 100;
+                    refUser.totalEarned += 100;
+                    refUser.txns.unshift({ id: 't_' + Date.now(), type: 'earn', amt: 100, desc: `👥 Referral: ${name}`, time: new Date().toISOString() });
+                    nu.pts += 50;
+                    nu.totalEarned += 50;
+                    toast('Referral bonus! +50 pts', 'success');
+                }
+            }
+            
+            data.users.push(nu);
+            data.currUser = nu.id;
+            data.stats.users++;
+            user = nu;
+            saveData();
+            toast('Account created! 🎉', 'success');
+            render();
+        }
+        
+        function logout() {
+            data.currUser = null;
+            user = null;
+            saveData();
+            toast('Logged out', 'success');
+            render();
+        }
+        
+        // ===================== MAIN APP =====================
+        let view = 'home';
+        
+        function renderMain() {
+            return `
+            <div class="min-h-screen flex flex-col bg-olive-50">
+                <!-- Header -->
+                <header class="bg-olive-600 text-white px-4 py-3 sticky top-0 z-40 shadow">
+                    <div class="max-w-lg mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎰</span>
+                            <div>
+                                <h1 class="text-lg font-bold">SpinWin</h1>
+                                <p class="text-xs text-olive-200">Level ${user.level} • ${user.name}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1 bg-olive-700/50 px-3 py-1.5 rounded-full">
+                                <span class="text-sm">💰</span>
+                                <span class="font-bold text-sm">${fmtNum(user.pts)}</span>
+                            </div>
+                            <button onclick="logout()" class="p-2 rounded-full bg-olive-700/50 hover:bg-red-500/80 transition" title="Logout">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Content -->
+                <main class="flex-1 p-4 pb-20 overflow-y-auto">
+                    <div class="max-w-lg mx-auto slide-up">
+                        ${renderView()}
+                    </div>
+                </main>
+                
+                <!-- Bottom Nav -->
+                <nav class="bg-white border-t border-olive-200 fixed bottom-0 left-0 right-0 z-40">
+                    <div class="max-w-lg mx-auto flex justify-around py-2">
+                        <button onclick="goView('home')" class="nav-btn flex flex-col items-center py-1 px-3 ${view === 'home' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">🏠</span>
+                            <span class="text-xs mt-0.5">Home</span>
+                        </button>
+                        <button onclick="goView('spin')" class="nav-btn flex flex-col items-center py-1 px-3 ${view === 'spin' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">🎰</span>
+                            <span class="text-xs mt-0.5">Spin</span>
+                        </button>
+                        <button onclick="goView('tasks')" class="nav-btn flex flex-col items-center py-1 px-3 ${view === 'tasks' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">📋</span>
+                            <span class="text-xs mt-0.5">Tasks</span>
+                        </button>
+                        <button onclick="goView('wallet')" class="nav-btn flex flex-col items-center py-1 px-3 ${view === 'wallet' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">💳</span>
+                            <span class="text-xs mt-0.5">Withdraw</span>
+                        </button>
+                        <button onclick="goView('profile')" class="nav-btn flex flex-col items-center py-1 px-3 relative ${view === 'profile' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">👤</span>
+                            <span class="text-xs mt-0.5">Profile</span>
+                            ${user.isAdmin ? '<span class="absolute -top-1 -right-1 w-4 h-4 bg-accent-orange rounded-full flex items-center justify-center text-[10px] text-white">👑</span>' : ''}
+                        </button>
+                    </div>
+                </nav>
+            </div>`;
+        }
+        
+        function goView(v) { view = v; render(); }
+        
+        function renderView() {
+            switch(view) {
+                case 'spin': return renderSpin();
+                case 'tasks': return renderTasks();
+                case 'wallet': return renderWallet();
+                case 'profile': return renderProfile();
+                case 'admin': return renderAdmin();
+                case 'referral': return renderReferral();
+                case 'badges': return renderBadges();
+                case 'leaderboard': return renderLeaderboard();
+                default: return renderHome();
+            }
+        }
+        
+        // ===================== HOME =====================
+        function renderHome() {
+            const today = new Date().toDateString();
+            if (user.lastSpinReset !== today) {
+                user.spinsToday = 0;
+                user.lastSpinReset = today;
+                user.tasks = getDefaultTasks();
+                updateUser(user);
+            }
+            
+            const spinsLeft = Math.max(0, 10 - user.spinsToday);
+            const doneTasks = user.tasks.filter(t => t.done).length;
+            
+            return `
+            <!-- Balance Card -->
+            <div class="bg-gradient-to-br from-olive-600 to-olive-700 rounded-2xl p-5 text-white mb-4 shadow-lg">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-olive-200 text-sm">Balance</p>
+                        <p class="text-3xl font-bold">${fmtNum(user.pts)}</p>
+                        <p class="text-olive-200 text-xs mt-1">≈ Rs. ${(user.pts * 0.01).toFixed(2)}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-green-400 online-dot"></span>
+                            <span class="text-xs text-olive-200">${Math.floor(Math.random() * 50) + 20} online</span>
+                        </div>
+                        <p class="text-xs text-olive-200 mt-1">Level ${user.level}</p>
+                    </div>
+                </div>
+                <div class="mt-3 h-1.5 bg-olive-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-accent-orange rounded-full transition-all" style="width: ${Math.min(100, (user.pts % 1000) / 10)}%"></div>
+                </div>
+                <p class="text-xs text-olive-200 mt-1">${(user.pts % 1000)} / 1000 to Level ${user.level + 1}</p>
+            </div>
+            
+            <!-- Spins Left -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎰</span>
+                        <div>
+                            <p class="font-semibold text-amber-800">Spins Left Today</p>
+                            <p class="text-xs text-amber-600">Reset at midnight</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-accent-orange">${spinsLeft}</p>
+                        <p class="text-xs text-amber-600">/ 10</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Jackpot Banner -->
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-4 mb-4 shadow cursor-pointer" onclick="goView('spin')">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-white/80 text-xs">JACKPOT</p>
+                        <p class="text-2xl font-bold text-white">${fmtNum(data.jp.amt)}</p>
+                    </div>
+                    <span class="text-3xl">🎯</span>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="goView('spin')" class="bg-accent-orange hover:bg-accent-orangeHover text-white rounded-xl p-4 flex items-center gap-2 shadow transition">
+                    <span class="text-2xl">🎡</span>
+                    <div class="text-left">
+                        <p class="font-semibold">Spin</p>
+                        <p class="text-xs text-white/70">Win points!</p>
+                    </div>
+                </button>
+                <button onclick="goView('tasks')" class="bg-olive-700 hover:bg-olive-800 text-white rounded-xl p-4 flex items-center gap-2 shadow transition">
+                    <span class="text-2xl">📋</span>
+                    <div class="text-left">
+                        <p class="font-semibold">Tasks</p>
+                        <p class="text-xs text-white/70">${doneTasks}/${user.tasks.length} done</p>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">🎰</p>
+                    <p class="font-bold text-olive-700">${user.spins}</p>
+                    <p class="text-xs text-gray-500">Spins</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">💰</p>
+                    <p class="font-bold text-olive-700">${fmtNum(user.totalEarned)}</p>
+                    <p class="text-xs text-gray-500">Earned</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">👥</p>
+                    <p class="font-bold text-olive-700">${user.refs.length}</p>
+                    <p class="text-xs text-gray-500">Refs</p>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100">
+                    <p class="font-semibold text-olive-700">Recent Activity</p>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    ${user.txns.slice(0, 5).map(t => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${t.type === 'earn' ? '💰' : '📤'}</span>
+                                <div>
+                                    <p class="text-sm text-gray-700">${t.desc}</p>
+                                    <p class="text-xs text-gray-400">${fmtDate(t.time)}</p>
+                                </div>
+                            </div>
+                            <span class="font-semibold ${t.type === 'earn' ? 'text-green-600' : 'text-red-500'}">${t.type === 'earn' ? '+' : '-'}${fmtNum(t.amt)}</span>
+                        </div>
+                    `).join('') || '<div class="p-4 text-center text-gray-400 text-sm">No activity yet</div>'}
+                </div>
+            </div>`;
+        }
+        
+        // ===================== SPIN =====================
+        const PRIZES = [
+            { label: '10', val: 10, color: '#84cc16', chance: 25 },
+            { label: '25', val: 25, color: '#22c55e', chance: 20 },
+            { label: '50', val: 50, color: '#3b82f6', chance: 15 },
+            { label: '100', val: 100, color: '#8b5cf6', chance: 10 },
+            { label: '200', val: 200, color: '#ec4899', chance: 7 },
+            { label: '500', val: 500, color: '#f59e0b', chance: 5 },
+            { label: '1K', val: 1000, color: '#ef4444', chance: 3 },
+            { label: 'JP', val: 'jp', color: '#fbbf24', chance: 1 }
+        ];
+        
+        let spinning = false;
+        
+        function renderSpin() {
+            const today = new Date().toDateString();
+            if (user.lastSpinReset !== today) {
+                user.spinsToday = 0;
+                user.lastSpinReset = today;
+                updateUser(user);
+            }
+            const spinsLeft = Math.max(0, 10 - user.spinsToday);
+            
+            return `
+            <div class="text-center mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Spin the Wheel!</h2>
+                <p class="text-gray-500 text-sm">Cost: 10 pts per spin</p>
+            </div>
+            
+            <!-- Spins Left -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-center">
+                <p class="text-amber-800">Spins Left Today: <span class="font-bold text-accent-orange">${spinsLeft}</span> / 10</p>
+            </div>
+            
+            <!-- Wheel -->
+            <div class="flex justify-center mb-4">
+                <div class="wheel-container">
+                    <div class="wheel-pointer"></div>
+                    <div id="wheel" class="wheel">
+                        ${PRIZES.map((p, i) => `<div class="wheel-segment" style="transform: rotate(${i * 45}deg); background: ${p.color};"><span>${p.label}</span></div>`).join('')}
+                    </div>
+                    <div class="wheel-center" onclick="spin()">SPIN</div>
+                </div>
+            </div>
+            
+            <!-- Jackpot -->
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-4 mb-4 text-center">
+                <p class="text-white/80 text-xs">CURRENT JACKPOT</p>
+                <p class="text-2xl font-bold text-white">${fmtNum(data.jp.amt)}</p>
+                <p class="text-white/60 text-xs">${data.jp.players} participants</p>
+            </div>
+            
+            <!-- Prize Table -->
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                <p class="font-semibold text-olive-700 mb-2">Prize Table</p>
+                <div class="grid grid-cols-4 gap-2">
+                    ${PRIZES.map(p => `<div class="flex items-center gap-1 text-xs"><div class="w-3 h-3 rounded" style="background: ${p.color}"></div><span>${p.label}</span><span class="text-gray-400">(${p.chance}%)</span></div>`).join('')}
+                </div>
+            </div>`;
+        }
+        
+        function spin() {
+            if (spinning) return;
+            
+            const today = new Date().toDateString();
+            if (user.lastSpinReset !== today) {
+                user.spinsToday = 0;
+                user.lastSpinReset = today;
+            }
+            
+            if (user.spinsToday >= 10) {
+                toast('No spins left today!', 'error');
+                return;
+            }
+            
+            if (user.pts < 10) {
+                toast('Need 10 points to spin!', 'error');
+                return;
+            }
+            
+            spinning = true;
+            user.pts -= 10;
+            user.spins++;
+            user.spinsToday++;
+            data.stats.spins++;
+            
+            // Determine prize
+            const rand = Math.random() * 100;
+            let cum = 0, prize = PRIZES[0];
+            for (const p of PRIZES) {
+                cum += p.chance;
+                if (rand <= cum) { prize = p; break; }
+            }
+            
+            // Rotation
+            const segAngle = 45;
+            const idx = PRIZES.indexOf(prize);
+            const targetRot = 360 - (idx * segAngle + segAngle / 2);
+            const totalRot = 360 * 5 + targetRot;
+            
+            const wheel = $('wheel');
+            wheel.style.transform = `rotate(${totalRot}deg)`;
+            
+            if (syncChannel) syncChannel.postMessage({ type: 'spin', user: user.name, prize: prize.label });
+            
+            setTimeout(() => {
+                spinning = false;
+                
+                if (prize.val === 'jp') {
+                    const jpAmt = data.jp.amt;
+                    user.pts += jpAmt;
+                    user.totalEarned += jpAmt;
+                    user.stats.jpWins++;
+                    data.jp.amt = 10000;
+                    addTxn('earn', jpAmt, '🎰 JACKPOT WIN!');
+                    toast(`🎉 JACKPOT! ${fmtNum(jpAmt)} pts!`, 'success');
+                    confetti();
+                    if (syncChannel) syncChannel.postMessage({ type: 'jp', user: user.name, amt: jpAmt });
+                } else {
+                    user.pts += prize.val;
+                    user.totalEarned += prize.val;
+                    addTxn('earn', prize.val, `Spin: ${prize.label} pts`);
+                    toast(`Won ${prize.val} pts!`, 'success');
+                    if (prize.val >= 500) confetti();
+                }
+                
+                if (prize.val !== 'jp' && prize.val > user.stats.bigWin) user.stats.bigWin = prize.val;
+                data.jp.amt += 10;
+                data.jp.players++;
+                
+                checkLevel();
+                updateUser(user);
+                render();
+            }, 4000);
+        }
+        
+        // ===================== TASKS =====================
+        function renderTasks() {
+            const done = user.tasks.filter(t => t.done).length;
+            const avail = user.tasks.filter(t => !t.done).reduce((s, t) => s + t.pts, 0);
+            
+            return `
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-olive-700">Tasks</h2>
+                    <p class="text-gray-500 text-sm">Complete to earn points</p>
+                </div>
+                <button onclick="resetTasks()" class="text-xs text-accent-orange hover:underline">Reset</button>
+            </div>
+            
+            <div class="bg-olive-600 rounded-xl p-4 mb-4 text-white">
+                <div class="flex justify-between">
+                    <div>
+                        <p class="text-olive-200 text-xs">Completed</p>
+                        <p class="text-xl font-bold">${done}/${user.tasks.length}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-olive-200 text-xs">Available</p>
+                        <p class="text-xl font-bold">${fmtNum(avail)}</p>
+                    </div>
+                </div>
+                <div class="mt-2 h-2 bg-olive-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-accent-orange rounded-full transition-all" style="width: ${(done / user.tasks.length) * 100}%"></div>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                ${user.tasks.map(t => `
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100 ${t.done ? 'opacity-60' : ''} flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">${t.icon}</span>
+                            <div>
+                                <p class="font-medium text-gray-700">${t.title}</p>
+                                <p class="text-xs text-gray-400">${t.desc}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-accent-orange">+${t.pts}</p>
+                            ${t.done ? '<span class="text-xs text-green-600">✓ Done</span>' : `<button onclick="doTask(${t.id})" class="text-xs bg-olive-600 text-white px-3 py-1 rounded-full hover:bg-olive-700">Do it</button>`}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+        
+        function doTask(id) {
+            const t = user.tasks.find(t => t.id === id);
+            if (t && !t.done) {
+                t.done = true;
+                user.pts += t.pts;
+                user.totalEarned += t.pts;
+                addTxn('earn', t.pts, `Task: ${t.title}`);
+                toast(`+${t.pts} pts!`, 'success');
+                updateUser(user);
+                render();
+            }
+        }
+        
+        function resetTasks() {
+            user.tasks = getDefaultTasks();
+            updateUser(user);
+            toast('Tasks reset!', 'success');
+            render();
+        }
+        
+        // ===================== WALLET =====================
+        function renderWallet() {
+            const pending = user.wds.filter(w => w.status === 'pending');
+            const completed = user.wds.filter(w => w.status === 'completed');
+            const totalWd = completed.reduce((s, w) => s + w.amt, 0);
+            
+            return `
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Wallet</h2>
+                <p class="text-gray-500 text-sm">Withdraw your earnings</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-olive-600 to-olive-700 rounded-2xl p-5 text-white mb-4 shadow-lg">
+                <p class="text-olive-200 text-sm">Available Balance</p>
+                <p class="text-3xl font-bold">${fmtNum(user.pts)}</p>
+                <p class="text-olive-200 text-xs">≈ Rs. ${(user.pts * 0.01).toFixed(2)} PKR</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Earned</p>
+                    <p class="font-bold text-olive-600">${fmtNum(user.totalEarned)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Withdrawn</p>
+                    <p class="font-bold text-olive-700">${fmtNum(totalWd)}</p>
+                </div>
+            </div>
+            
+            <button onclick="showWdModal()" class="w-full bg-olive-700 hover:bg-olive-800 text-white font-semibold py-3 rounded-xl mb-4 shadow transition flex items-center justify-center gap-2">
+                <span>💳</span> Withdraw Funds
+            </button>
+            
+            ${pending.length > 0 ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                    <p class="font-medium text-amber-800 mb-2">⏳ Pending Withdrawals</p>
+                    ${pending.map(w => `<div class="flex justify-between py-1 text-sm"><span class="text-amber-700">${fmtNum(w.amt)} pts</span><span class="text-amber-600">${w.method}</span></div>`).join('')}
+                </div>
+            ` : ''}
+            
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100">
+                    <p class="font-semibold text-olive-700">Transaction History</p>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-60 overflow-y-auto">
+                    ${user.txns.length > 0 ? user.txns.map(t => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span>${t.type === 'earn' ? '💰' : '📤'}</span>
+                                <div>
+                                    <p class="text-sm text-gray-700">${t.desc}</p>
+                                    <p class="text-xs text-gray-400">${fmtDate(t.time)}</p>
+                                </div>
+                            </div>
+                            <span class="font-semibold ${t.type === 'earn' ? 'text-green-600' : 'text-red-500'}">${t.type === 'earn' ? '+' : '-'}${fmtNum(t.amt)}</span>
+                        </div>
+                    `).join('') : '<div class="p-4 text-center text-gray-400 text-sm">No transactions</div>'}
+                </div>
+            </div>`;
+        }
+        
+        function showWdModal() {
+            $('modalContent').innerHTML = `
+                <div class="p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-olive-700">Withdraw Funds</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-3">Available: <span class="font-bold text-olive-600">${fmtNum(user.pts)} pts</span> (min 1000)</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount (points)</label>
+                            <input type="number" id="wdAmt" min="1000" max="${user.pts}" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Min 1000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                            <select id="wdMethod" class="w-full p-3 border border-gray-200 rounded-lg">
+                                <option value="easypaisa">📱 Easypaisa</option>
+                                <option value="jazzcash">💳 JazzCash</option>
+                                <option value="bank">🏦 Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                            <input type="text" id="wdAcc" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Enter account">
+                        </div>
+                        <button onclick="submitWd()" class="w-full bg-olive-600 hover:bg-olive-700 text-white font-semibold py-3 rounded-lg transition">Submit Request</button>
+                    </div>
+                </div>`;
+            $('modal').classList.remove('hidden');
+        }
+        
+        function submitWd() {
+            const amt = parseInt($('wdAmt').value);
+            const method = $('wdMethod').value;
+            const acc = $('wdAcc').value;
+            
+            if (!amt || amt < 1000) { toast('Minimum 1000 pts', 'error'); return; }
+            if (amt > user.pts) { toast('Insufficient balance', 'error'); return; }
+            if (!acc) { toast('Enter account number', 'error'); return; }
+            
+            const wd = { id: 'wd_' + Date.now(), userId: user.id, userName: user.name, amt, method, acc, status: 'pending', time: new Date().toISOString() };
+            data.wds.push(wd);
+            user.wds.push(wd);
+            user.pts -= amt;
+            addTxn('spend', amt, 'Withdrawal request');
+            
+            updateUser(user);
+            closeModal();
+            toast('Request submitted!', 'success');
+            render();
+        }
+        
+        // ===================== PROFILE =====================
+        function renderProfile() {
+            return `
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Profile</h2>
+                <p class="text-gray-500 text-sm">Manage your account</p>
+            </div>
+            
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 bg-gradient-to-br from-olive-500 to-olive-600 rounded-full flex items-center justify-center">
+                        <span class="text-white text-xl font-bold">${user.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-800">${user.name}</p>
+                        <p class="text-sm text-gray-500">${user.email}</p>
+                        <div class="flex gap-1 mt-1">
+                            ${user.isAdmin ? '<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">👑 Admin</span>' : ''}
+                            <span class="text-xs bg-olive-100 text-olive-700 px-2 py-0.5 rounded-full">Level ${user.level}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Referral -->
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100 mb-4">
+                <p class="font-semibold text-olive-700 mb-2">👥 Refer & Earn</p>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 bg-olive-50 px-3 py-2 rounded border border-olive-200 font-mono text-olive-600 font-bold">${user.refCode}</code>
+                    <button onclick="copyRef()" class="bg-olive-600 text-white px-3 py-2 rounded hover:bg-olive-700 transition">Copy</button>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Earn 100 pts per referral!</p>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Spins</p>
+                    <p class="font-bold text-olive-700">${user.spins}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Earned</p>
+                    <p class="font-bold text-olive-600">${fmtNum(user.totalEarned)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Biggest Win</p>
+                    <p class="font-bold text-amber-600">${fmtNum(user.stats.bigWin)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Jackpot Wins</p>
+                    <p class="font-bold text-purple-600">${user.stats.jpWins}</p>
+                </div>
+            </div>
+            
+            <!-- Menu -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 divide-y divide-olive-50">
+                <button onclick="view='referral';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                    <div class="flex items-center gap-2"><span>👥</span><span class="text-gray-700">Referrals</span></div>
+                    <span class="text-gray-400">→</span>
+                </button>
+                <button onclick="view='badges';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                    <div class="flex items-center gap-2"><span>🏅</span><span class="text-gray-700">Badges</span></div>
+                    <span class="text-gray-400">→</span>
+                </button>
+                <button onclick="view='leaderboard';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                    <div class="flex items-center gap-2"><span>🏆</span><span class="text-gray-700">Leaderboard</span></div>
+                    <span class="text-gray-400">→</span>
+                </button>
+                ${user.isAdmin ? `
+                    <button onclick="view='admin';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                        <div class="flex items-center gap-2"><span>⚙️</span><span class="text-gray-700">Admin Panel</span></div>
+                        <span class="text-gray-400">→</span>
+                    </button>
+                ` : ''}
+            </div>`;
+        }
+        
+        function renderReferral() {
+            return `
+            <div class="mb-4">
+                <button onclick="view='profile';render()" class="text-olive-600 text-sm mb-2">← Back</button>
+                <h2 class="text-xl font-bold text-olive-700">Referrals</h2>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100 mb-4">
+                <p class="font-semibold text-olive-700 mb-2">Your Referral Code</p>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 bg-olive-50 px-3 py-2 rounded border border-olive-200 font-mono text-olive-600 font-bold">${user.refCode}</code>
+                    <button onclick="copyRef()" class="bg-olive-600 text-white px-3 py-2 rounded hover:bg-olive-700">Copy</button>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100">
+                <p class="font-semibold text-olive-700 mb-2">Your Referrals (${user.refs.length})</p>
+                ${user.refs.length > 0 ? user.refs.map(r => `<div class="py-2 border-b border-olive-50">${r}</div>`).join('') : '<p class="text-gray-400 text-sm">No referrals yet. Share your code!</p>'}
+            </div>`;
+        }
+        
+        function renderBadges() {
+            const badges = [
+                { id: 'spin1', name: 'First Spin', icon: '🎰', desc: 'Complete first spin', unlocked: user.spins > 0 },
+                { id: 'spin10', name: 'Spin Master', icon: '🔄', desc: '10 spins', unlocked: user.spins >= 10 },
+                { id: 'spin100', name: 'Spin Legend', icon: '⭐', desc: '100 spins', unlocked: user.spins >= 100 },
+                { id: 'pts1k', name: 'Collector', icon: '💰', desc: 'Earn 1,000 pts', unlocked: user.totalEarned >= 1000 },
+                { id: 'pts10k', name: 'Millionaire', icon: '💎', desc: 'Earn 10,000 pts', unlocked: user.totalEarned >= 10000 },
+                { id: 'jp', name: 'Jackpot Winner', icon: '🎯', desc: 'Win jackpot', unlocked: user.stats.jpWins > 0 },
+                { id: 'ref1', name: 'Networker', icon: '👥', desc: '1 referral', unlocked: user.refs.length >= 1 },
+                { id: 'lvl5', name: 'Rising Star', icon: '🌟', desc: 'Reach level 5', unlocked: user.level >= 5 },
+            ];
+            const unlocked = badges.filter(b => b.unlocked).length;
+            
+            return `
+            <div class="mb-4">
+                <button onclick="view='profile';render()" class="text-olive-600 text-sm mb-2">← Back</button>
+                <h2 class="text-xl font-bold text-olive-700">Badges</h2>
+                <p class="text-gray-500 text-sm">${unlocked}/${badges.length} unlocked</p>
+            </div>
+            <div class="space-y-2">
+                ${badges.map(b => `
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100 flex items-center gap-3 ${b.unlocked ? '' : 'opacity-50'}">
+                        <span class="text-2xl">${b.icon}</span>
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-700">${b.name}</p>
+                            <p class="text-xs text-gray-400">${b.desc}</p>
+                        </div>
+                        ${b.unlocked ? '<span class="text-green-500">✓</span>' : '<span class="text-gray-300">🔒</span>'}
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+        
+        function renderLeaderboard() {
+            const leaders = data.users.map(u => ({ name: u.name, pts: u.totalEarned, isYou: u.id === user.id }))
+                .sort((a, b) => b.pts - a.pts).slice(0, 10);
+            
+            return `
+            <div class="mb-4">
+                <button onclick="view='profile';render()" class="text-olive-600 text-sm mb-2">← Back</button>
+                <h2 class="text-xl font-bold text-olive-700">Leaderboard</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 divide-y divide-olive-50">
+                ${leaders.map((l, i) => `
+                    <div class="p-3 flex items-center justify-between ${l.isYou ? 'bg-olive-50' : ''}">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full ${i < 3 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'} flex items-center justify-center text-xs font-bold">${i + 1}</span>
+                            <span class="text-gray-700">${l.name}</span>
+                            ${l.isYou ? '<span class="text-xs bg-olive-200 text-olive-700 px-1.5 py-0.5 rounded">You</span>' : ''}
+                        </div>
+                        <span class="font-bold text-olive-600">${fmtNum(l.pts)}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+        
+        // ===================== ADMIN =====================
+        function renderAdmin() {
+            if (!user.isAdmin) return '<div class="p-4 text-center text-red-500">Access denied</div>';
+            
+            const pending = data.wds.filter(w => w.status === 'pending');
+            
+            return `
+            <!-- Admin Header -->
+            <div class="bg-gradient-to-r from-olive-600 to-olive-700 rounded-xl p-4 mb-4 text-white">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xl">⚙️</span>
+                    <h2 class="text-lg font-bold">Admin Dashboard</h2>
+                </div>
+                <p class="text-olive-200 text-sm">Manage users, tasks, withdrawals & more</p>
+            </div>
+            
+            <!-- Real-time Status -->
+            <div class="bg-white rounded-xl p-3 mb-4 shadow-sm border border-olive-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 online-dot"></span>
+                    <span class="text-sm text-gray-600">Real-time: Connected</span>
+                </div>
+                <div class="flex items-center gap-1 text-sm text-gray-500">
+                    <span>👥</span>
+                    <span>${data.users.length} users</span>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Users</p>
+                    <p class="text-xl font-bold text-olive-700">${data.users.length}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Pending WD</p>
+                    <p class="text-xl font-bold text-amber-600">${pending.length}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Spins</p>
+                    <p class="text-xl font-bold text-olive-600">${data.stats.spins}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Jackpot</p>
+                    <p class="text-xl font-bold text-amber-500">${fmtNum(data.jp.amt)}</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl p-3 mb-4 shadow-sm border border-olive-100">
+                <p class="font-semibold text-olive-700 mb-2">Quick Actions</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="adminAddPts()" class="bg-olive-600 hover:bg-olive-700 text-white py-2 rounded-lg text-sm transition">💰 Add Points</button>
+                    <button onclick="adminAnnounce()" class="bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition">📢 Announce</button>
+                    <button onclick="adminTriggerJP()" class="bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg text-sm transition">🎰 Trigger JP</button>
+                    <button onclick="view='home';render()" class="bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg text-sm transition">🏠 Home</button>
+                </div>
+            </div>
+            
+            <!-- Users -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 mb-4">
+                <div class="p-3 border-b border-olive-100">
+                    <p class="font-semibold text-olive-700">Users</p>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    ${data.users.map(u => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 bg-olive-200 rounded-full flex items-center justify-center">
+                                    <span class="text-olive-700 font-bold text-sm">${u.name.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-700">${u.name} ${u.isAdmin ? '👑' : ''}</p>
+                                    <p class="text-xs text-gray-400">${u.email}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-olive-600 text-sm">${fmtNum(u.pts)} pts</p>
+                                <p class="text-xs text-gray-400">Lvl ${u.level}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <!-- Pending Withdrawals -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100 flex justify-between items-center">
+                    <p class="font-semibold text-olive-700">Pending Withdrawals</p>
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">${pending.length}</span>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    ${pending.length > 0 ? pending.map(w => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div>
+                                <p class="font-medium text-gray-700">${fmtNum(w.amt)} pts</p>
+                                <p class="text-xs text-gray-400">${w.method} - ${w.acc}</p>
+                                <p class="text-xs text-gray-400">${w.userName}</p>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="processWd('${w.id}','completed')" class="bg-green-100 hover:bg-green-200 text-green-600 p-1.5 rounded transition">✓</button>
+                                <button onclick="processWd('${w.id}','rejected')" class="bg-red-100 hover:bg-red-200 text-red-600 p-1.5 rounded transition">✕</button>
+                            </div>
+                        </div>
+                    `).join('') : '<div class="p-4 text-center text-gray-400 text-sm">No pending withdrawals</div>'}
+                </div>
+            </div>`;
+        }
+        
+        function adminAddPts() {
+            const email = prompt('User email:');
+            if (!email) return;
+            const u = data.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+            if (!u) { toast('User not found', 'error'); return; }
+            const amt = prompt('Points to add:');
+            if (amt && !isNaN(amt)) {
+                const pts = parseInt(amt);
+                u.pts += pts;
+                u.totalEarned += pts;
+                u.txns.unshift({ id: 't_' + Date.now(), type: 'earn', amt: pts, desc: '👑 Admin bonus', time: new Date().toISOString() });
+                saveData();
+                toast(`Added ${pts} pts to ${u.name}`, 'success');
+                render();
+            }
+        }
+        
+        function adminAnnounce() {
+            const msg = prompt('Announcement:');
+            if (msg) {
+                data.announces.push({ msg, time: new Date().toISOString() });
+                if (syncChannel) syncChannel.postMessage({ type: 'announce', msg, time: new Date().toISOString() });
+                saveData();
+                toast('Announcement sent!', 'success');
+            }
+        }
+        
+        function adminTriggerJP() {
+            if (confirm('Trigger jackpot?')) {
+                const amt = data.jp.amt;
+                user.pts += amt;
+                user.totalEarned += amt;
+                user.stats.jpWins++;
+                addTxn('earn', amt, '🎰 Admin triggered JP!');
+                data.jp.amt = 10000;
+                if (syncChannel) syncChannel.postMessage({ type: 'jp', user: 'Admin', amt });
+                updateUser(user);
+                confetti();
+                toast(`Jackpot! ${fmtNum(amt)} pts!`, 'success');
+                render();
+            }
+        }
+        
+        function processWd(id, status) {
+            const wd = data.wds.find(w => w.id === id);
+            if (wd) {
+                wd.status = status;
+                const u = data.users.find(u => u.id === wd.userId);
+                if (u) {
+                    const userWd = u.wds.find(w => w.id === id);
+                    if (userWd) userWd.status = status;
+                    if (status === 'rejected') {
+                        u.pts += wd.amt;
+                        u.txns.unshift({ id: 't_' + Date.now(), type: 'earn', amt: wd.amt, desc: 'WD refunded', time: new Date().toISOString() });
+                    }
+                }
+                saveData();
+                toast(`Withdrawal ${status}`, 'success');
+                render();
+            }
+        }
+        
+        // ===================== HELPERS =====================
+        function addTxn(type, amt, desc) {
+            user.txns.unshift({ id: 't_' + Date.now(), type, amt, desc, time: new Date().toISOString() });
+            if (user.txns.length > 50) user.txns = user.txns.slice(0, 50);
+        }
+        
+        function checkLevel() {
+            const newLvl = Math.floor(user.totalEarned / 1000) + 1;
+            if (newLvl > user.level) {
+                user.level = newLvl;
+                toast(`🎉 Level Up! Now level ${newLvl}!`, 'success');
+            }
+        }
+        
+        function fmtNum(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toLocaleString();
+        }
+        
+        function fmtDate(d) {
+            const date = new Date(d);
+            const now = new Date();
+            const diff = now - date;
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+            return date.toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+        }
+        
+        function toast(msg, type = 'info') {
+            const t = $('toast');
+            const el = document.createElement('div');
+            const bg = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-olive-600';
+            el.className = `${bg} text-white px-3 py-2 rounded-lg shadow slide-up flex items-center gap-2 text-sm`;
+            el.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span><span>${msg}</span>`;
+            t.appendChild(el);
+            setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; el.style.transition = 'all 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+        }
+        
+        function closeModal() { $('modal').classList.add('hidden'); }
+        
+        function confetti() {
+            const colors = ['#84cc16', '#FF8C42', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
+            for (let i = 0; i < 40; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDelay = Math.random() * 2 + 's';
+                c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 5000);
+            }
+        }
+        
+        function copyRef() {
+            navigator.clipboard.writeText(user.refCode).then(() => toast('Copied!', 'success'));
+        }
+        
+        // ===================== INIT =====================
+        function init() {
+            user = getUser();
+            render();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
 
