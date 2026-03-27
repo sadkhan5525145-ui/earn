@@ -1,1 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpinWin - Earn Points, Win Rewards!</title>
+    <meta name="description" content="SpinWin - Spin the wheel, complete tasks, and win rewards!">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%236b7a5f' rx='20' width='100' height='100'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>S</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        olive: {
+                            50: '#f4f5f0',
+                            100: '#e8ebe3',
+                            200: '#d1d7c7',
+                            300: '#b3bda3',
+                            400: '#95a47d',
+                            500: '#7a8a5f',
+                            600: '#6b7a5f',
+                            700: '#5a6b4a',
+                            800: '#4a5a3d',
+                            900: '#3d4a32',
+                        },
+                        accent: { orange: '#FF8C42', orangeHover: '#E67A35' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .wheel-container { position: relative; width: 280px; height: 280px; }
+        @media (min-width: 400px) { .wheel-container { width: 320px; height: 320px; } }
+        .wheel { width: 100%; height: 100%; border-radius: 50%; position: relative; overflow: hidden; box-shadow: 0 8px 32px rgba(107, 122, 95, 0.3); transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); }
+        .wheel-segment { position: absolute; width: 50%; height: 50%; transform-origin: 100% 100%; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+        .wheel-segment span { position: absolute; font-weight: 700; font-size: 11px; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.4); transform: rotate(22.5deg) translateY(-48px); }
+        @media (min-width: 400px) { .wheel-segment span { font-size: 12px; transform: rotate(22.5deg) translateY(-55px); } }
+        .wheel-pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent; border-top: 30px solid #FF8C42; z-index: 10; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.25)); }
+        .wheel-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: linear-gradient(135deg, #FF8C42, #E67A35); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 14px; box-shadow: 0 4px 12px rgba(255, 140, 66, 0.4); z-index: 5; cursor: pointer; transition: transform 0.15s; }
+        .wheel-center:hover { transform: translate(-50%, -50%) scale(1.08); }
+        .wheel-center:active { transform: translate(-50%, -50%) scale(0.95); }
+        .confetti { position: fixed; width: 10px; height: 10px; pointer-events: none; animation: confetti-fall 3s linear forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        .slide-up { animation: slideUp 0.25s ease-out; }
+        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .online-dot { animation: onlinePulse 1.5s infinite; }
+        @keyframes onlinePulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #95a47d; border-radius: 3px; }
+        .loading-spinner { border: 3px solid #e8ebe3; border-top: 3px solid #6b7a5f; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-olive-50 min-h-screen">
+    <div id="app" class="min-h-screen flex items-center justify-center">
+        <div class="text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-olive-600">Loading SpinWin...</p>
+        </div>
+    </div>
+    <div id="toast" class="fixed top-16 right-3 z-50 flex flex-col gap-2 max-w-xs"></div>
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/40" onclick="closeModal()"></div>
+        <div id="modalContent" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl max-w-md w-[90%] max-h-[85vh] overflow-y-auto"></div>
+    </div>
+
+    <script>
+        // ===================== FIREBASE CONFIG =====================
+        // Your Firebase config - Replace with your own or use this demo one
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemo-Key-For-SpinWin-App-2024",
+            authDomain: "spinwin-app-demo.firebaseapp.com",
+            databaseURL: "https://spinwin-app-demo-default-rtdb.firebaseio.com",
+            projectId: "spinwin-app-demo",
+            storageBucket: "spinwin-app-demo.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        // ===================== CONFIG =====================
+        const ADMIN_EMAIL = 'saadking3132@gmail.com';
+        const ADMIN_PASS = 'admin123';
+        
+        // ===================== STATE =====================
+        let currentUser = null;
+        let userData = null;
+        let globalData = null;
+        let currentView = 'home';
+        let listeners = {};
+        let spinning = false;
+
+        // ===================== WHEEL PRIZES =====================
+        const PRIZES = [
+            { label: '10', val: 10, color: '#84cc16', chance: 25 },
+            { label: '25', val: 25, color: '#22c55e', chance: 20 },
+            { label: '50', val: 50, color: '#3b82f6', chance: 15 },
+            { label: '100', val: 100, color: '#8b5cf6', chance: 10 },
+            { label: '200', val: 200, color: '#ec4899', chance: 7 },
+            { label: '500', val: 500, color: '#f59e0b', chance: 5 },
+            { label: '1K', val: 1000, color: '#ef4444', chance: 3 },
+            { label: 'JP', val: 'jp', color: '#fbbf24', chance: 1 }
+        ];
+
+        // ===================== HELPERS =====================
+        const $ = id => document.getElementById(id);
+        const fmtNum = n => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString();
+        const fmtDate = d => { const date = new Date(d), now = new Date(), diff = now - date; if(diff < 60000) return 'Just now'; if(diff < 3600000) return Math.floor(diff/60000)+'m ago'; if(diff < 86400000) return Math.floor(diff/3600000)+'h ago'; return date.toLocaleDateString('en-PK', {month:'short', day:'numeric'}); };
+        
+        function toast(msg, type = 'info') {
+            const t = $('toast'), el = document.createElement('div');
+            const bg = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-olive-600';
+            el.className = `${bg} text-white px-3 py-2 rounded-lg shadow slide-up flex items-center gap-2 text-sm`;
+            el.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span><span>${msg}</span>`;
+            t.appendChild(el);
+            setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; el.style.transition = 'all 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+        }
+        
+        function closeModal() { $('modal').classList.add('hidden'); }
+        
+        function confetti() {
+            const colors = ['#84cc16', '#FF8C42', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
+            for (let i = 0; i < 50; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDelay = Math.random() * 2 + 's';
+                c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 5000);
+            }
+        }
+
+        function getDefaultTasks() {
+            return [
+                { id: 1, title: 'Daily Login', desc: 'Login daily to SpinWin', pts: 10, icon: '👋', active: true },
+                { id: 2, title: 'Watch Video Ad', desc: 'Watch a short video advertisement', pts: 25, icon: '📺', active: true },
+                { id: 3, title: 'Complete Survey', desc: 'Answer a quick survey', pts: 50, icon: '📝', active: true },
+                { id: 4, title: 'Invite Friend', desc: 'Refer a friend to SpinWin', pts: 100, icon: '👥', active: true },
+                { id: 5, title: 'Social Share', desc: 'Share SpinWin on social media', pts: 30, icon: '🔗', active: true },
+                { id: 6, title: 'Complete 10 Spins', desc: 'Spin the wheel 10 times', pts: 75, icon: '🎰', active: true },
+                { id: 7, title: 'Download Partner App', desc: 'Download our partner app', pts: 200, icon: '📱', active: true },
+                { id: 8, title: 'Verify Email', desc: 'Verify your email address', pts: 150, icon: '✉️', active: true },
+            ];
+        }
+
+        function createUser(email, name, referredBy = null) {
+            const refCode = 'SPIN' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            return {
+                email: email.toLowerCase(),
+                name: name,
+                phone: '',
+                pts: 100,
+                totalEarned: 100,
+                spins: 0,
+                spinsToday: 0,
+                lastSpinReset: new Date().toDateString(),
+                level: 1,
+                refCode: refCode,
+                referredBy: referredBy,
+                refs: [],
+                badges: [],
+                txns: [{ id: 't_' + Date.now(), type: 'earn', amt: 100, desc: '🎁 Welcome bonus!', time: new Date().toISOString() }],
+                wds: [],
+                taskProgress: {},
+                stats: { bigWin: 0, jpWins: 0 },
+                isAdmin: email.toLowerCase() === ADMIN_EMAIL.toLowerCase(),
+                created: new Date().toISOString(),
+                lastLogin: new Date().toISOString(),
+                online: true,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            };
+        }
+
+        // ===================== DATABASE FUNCTIONS =====================
+        function listenToUser(userId) {
+            if (listeners.user) listeners.user.off();
+            listeners.user = db.ref(`users/${userId}`);
+            listeners.user.on('value', snap => {
+                userData = snap.val();
+                if (userData) {
+                    checkDailyReset();
+                    render();
+                }
+            });
+        }
+
+        function listenToGlobal() {
+            if (listeners.global) listeners.global.off();
+            listeners.global = db.ref('global');
+            listeners.global.on('value', snap => {
+                globalData = snap.val() || {
+                    jackpot: { amt: 10000, players: 0 },
+                    tasks: getDefaultTasks(),
+                    stats: { totalUsers: 0, totalSpins: 0, totalEarned: 0 },
+                    announcements: [],
+                    onlineUsers: 0
+                };
+                render();
+            });
+        }
+
+        function listenToOnlineUsers() {
+            if (listeners.online) listeners.online.off();
+            listeners.online = db.ref('users').orderByChild('online').equalTo(true);
+            listeners.online.on('value', snap => {
+                const count = snap.numChildren();
+                if (globalData) {
+                    globalData.onlineCount = count;
+                    render();
+                }
+            });
+        }
+
+        function updateUser(updates) {
+            if (currentUser) {
+                updates.lastSeen = firebase.database.ServerValue.TIMESTAMP;
+                db.ref(`users/${currentUser.uid}`).update(updates);
+            }
+        }
+
+        function addTransaction(type, amt, desc) {
+            const txn = { id: 't_' + Date.now(), type, amt, desc, time: new Date().toISOString() };
+            const txns = [...(userData.txns || []), txn].slice(-50);
+            updateUser({ txns });
+        }
+
+        function checkDailyReset() {
+            const today = new Date().toDateString();
+            if (userData && userData.lastSpinReset !== today) {
+                updateUser({ spinsToday: 0, lastSpinReset: today, taskProgress: {} });
+            }
+        }
+
+        function checkLevel() {
+            const newLvl = Math.floor(userData.totalEarned / 1000) + 1;
+            if (newLvl > userData.level) {
+                updateUser({ level: newLvl });
+                toast(`🎉 Level Up! Now level ${newLvl}!`, 'success');
+            }
+        }
+
+        // ===================== AUTH =====================
+        function initAuth() {
+            auth.onAuthStateChanged(async user => {
+                if (user) {
+                    currentUser = user;
+                    const snap = await db.ref(`users/${user.uid}`).once('value');
+                    if (snap.exists()) {
+                        userData = snap.val();
+                        updateUser({ online: true, lastLogin: new Date().toISOString() });
+                        listenToUser(user.uid);
+                        listenToGlobal();
+                        listenToOnlineUsers();
+                        
+                        // Set offline on disconnect
+                        db.ref(`users/${user.uid}/online`).onDisconnect().set(false);
+                        db.ref(`users/${user.uid}/lastSeen`).onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+                    } else {
+                        // Create new user
+                        const newUser = createUser(user.email, user.email.split('@')[0]);
+                        await db.ref(`users/${user.uid}`).set(newUser);
+                        userData = newUser;
+                        listenToUser(user.uid);
+                        listenToGlobal();
+                        listenToOnlineUsers();
+                        
+                        // Increment total users
+                        db.ref('global/stats/totalUsers').transaction(c => (c || 0) + 1);
+                    }
+                } else {
+                    currentUser = null;
+                    userData = null;
+                    if (listeners.user) listeners.user.off();
+                    if (listeners.global) listeners.global.off();
+                    render();
+                }
+            });
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = $('loginEmail').value;
+            const pass = $('loginPass').value;
+            
+            try {
+                // Check for admin
+                if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASS) {
+                    // Admin login - create custom user
+                    let adminSnap = await db.ref('users').orderByChild('email').equalTo(ADMIN_EMAIL.toLowerCase()).once('value');
+                    let adminId;
+                    
+                    if (!adminSnap.exists()) {
+                        adminId = 'admin_' + Date.now();
+                        const adminUser = createUser(ADMIN_EMAIL, 'Saad King (Admin)');
+                        adminUser.isAdmin = true;
+                        adminUser.name = 'Saad King (Admin)';
+                        adminUser.pts = 999999;
+                        adminUser.totalEarned = 999999;
+                        await db.ref(`users/${adminId}`).set(adminUser);
+                    } else {
+                        adminId = Object.keys(adminSnap.val())[0];
+                    }
+                    
+                    // Sign in anonymously and use admin ID
+                    await auth.signInAnonymously();
+                    currentUser = { uid: adminId, email: ADMIN_EMAIL };
+                    const snap = await db.ref(`users/${adminId}`).once('value');
+                    userData = snap.val();
+                    updateUser({ online: true, lastLogin: new Date().toISOString() });
+                    listenToUser(adminId);
+                    listenToGlobal();
+                    listenToOnlineUsers();
+                    db.ref(`users/${adminId}/online`).onDisconnect().set(false);
+                    toast('Welcome Admin! 👑', 'success');
+                    return;
+                }
+                
+                // Regular user - check if exists in database
+                const userSnap = await db.ref('users').orderByChild('email').equalTo(email.toLowerCase()).once('value');
+                
+                if (userSnap.exists()) {
+                    const userId = Object.keys(userSnap.val())[0];
+                    const u = Object.values(userSnap.val())[0];
+                    
+                    // Simple password check (in production, use proper auth)
+                    if (u.pass === pass || (u.email.toLowerCase() === email.toLowerCase())) {
+                        await auth.signInAnonymously();
+                        currentUser = { uid: userId, email: email };
+                        userData = u;
+                        updateUser({ online: true, lastLogin: new Date().toISOString() });
+                        listenToUser(userId);
+                        listenToGlobal();
+                        listenToOnlineUsers();
+                        db.ref(`users/${userId}/online`).onDisconnect().set(false);
+                        toast(`Welcome back, ${u.name}!`, 'success');
+                    } else {
+                        toast('Invalid password', 'error');
+                    }
+                } else {
+                    toast('User not found. Please sign up.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                toast('Login failed: ' + err.message, 'error');
+            }
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            const name = $('regName').value;
+            const email = $('regEmail').value;
+            const pass = $('regPass').value;
+            const ref = $('regRef').value;
+            
+            try {
+                // Check if email exists
+                const snap = await db.ref('users').orderByChild('email').equalTo(email.toLowerCase()).once('value');
+                if (snap.exists()) {
+                    toast('Email already registered', 'error');
+                    return;
+                }
+                
+                await auth.signInAnonymously();
+                const newUser = createUser(email, name, ref || null);
+                newUser.pass = pass; // Store password (in production, hash it!)
+                
+                // Handle referral
+                if (ref) {
+                    const refSnap = await db.ref('users').orderByChild('refCode').equalTo(ref.toUpperCase()).once('value');
+                    if (refSnap.exists()) {
+                        const refId = Object.keys(refSnap.val())[0];
+                        const refUser = Object.values(refSnap.val())[0];
+                        
+                        // Give referrer bonus
+                        db.ref(`users/${refId}`).update({
+                            refs: [...(refUser.refs || []), currentUser.uid],
+                            pts: (refUser.pts || 0) + 100,
+                            totalEarned: (refUser.totalEarned || 0) + 100
+                        });
+                        
+                        // Add referral txn to referrer
+                        const refTxns = [...(refUser.txns || []), { id: 't_' + Date.now(), type: 'earn', amt: 100, desc: `👥 Referral: ${name}`, time: new Date().toISOString() }].slice(-50);
+                        db.ref(`users/${refId}/txns`).set(refTxns);
+                        
+                        // Give new user bonus
+                        newUser.pts += 50;
+                        newUser.totalEarned += 50;
+                        newUser.txns.push({ id: 't_' + Date.now() + '_ref', type: 'earn', amt: 50, desc: '🎁 Referral signup bonus!', time: new Date().toISOString() });
+                        
+                        toast('Referral bonus applied! +50 pts', 'success');
+                    }
+                }
+                
+                await db.ref(`users/${currentUser.uid}`).set(newUser);
+                userData = newUser;
+                
+                // Update global stats
+                db.ref('global/stats/totalUsers').transaction(c => (c || 0) + 1);
+                
+                listenToUser(currentUser.uid);
+                listenToGlobal();
+                listenToOnlineUsers();
+                db.ref(`users/${currentUser.uid}/online`).onDisconnect().set(false);
+                
+                toast('Account created! 🎉', 'success');
+            } catch (err) {
+                console.error(err);
+                toast('Signup failed: ' + err.message, 'error');
+            }
+        }
+
+        function logout() {
+            if (currentUser) {
+                db.ref(`users/${currentUser.uid}/online`).set(false);
+            }
+            auth.signOut();
+            toast('Logged out', 'success');
+        }
+
+        // ===================== RENDER =====================
+        function render() {
+            const app = $('app');
+            if (!currentUser || !userData) {
+                app.innerHTML = renderAuth();
+            } else {
+                app.innerHTML = renderMain();
+            }
+        }
+
+        function renderAuth() {
+            return `
+            <div class="min-h-screen bg-gradient-to-br from-olive-600 to-olive-800 flex items-center justify-center p-4">
+                <div class="w-full max-w-md">
+                    <div class="text-center mb-6">
+                        <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                            <span class="text-4xl">🎰</span>
+                        </div>
+                        <h1 class="text-3xl font-bold text-white">SpinWin</h1>
+                        <p class="text-olive-200 mt-1">Spin. Earn. Withdraw!</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-xl p-5">
+                        <div class="flex mb-4 bg-olive-100 rounded-lg p-1">
+                            <button onclick="showAuthTab('login')" id="loginTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium bg-white text-olive-800 shadow">Login</button>
+                            <button onclick="showAuthTab('signup')" id="signupTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-olive-600">Sign Up</button>
+                        </div>
+                        
+                        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" id="loginEmail" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="your@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="loginPass" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="••••••••">
+                            </div>
+                            <button type="submit" class="w-full bg-olive-600 hover:bg-olive-700 text-white font-semibold py-3 rounded-lg transition">Login</button>
+                            <p class="text-xs text-gray-500 text-center">Admin: ${ADMIN_EMAIL} / ${ADMIN_PASS}</p>
+                        </form>
+                        
+                        <form id="signupForm" onsubmit="handleSignup(event)" class="space-y-3 hidden">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                <input type="text" id="regName" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="Your Name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" id="regEmail" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="your@email.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" id="regPass" required minlength="6" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="Min 6 characters">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Referral Code (Optional)</label>
+                                <input type="text" id="regRef" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-olive-500 focus:border-transparent" placeholder="SPINXXXXXX">
+                            </div>
+                            <button type="submit" class="w-full bg-accent-orange hover:bg-accent-orangeHover text-white font-semibold py-3 rounded-lg transition">Create Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function showAuthTab(tab) {
+            const lf = $('loginForm'), sf = $('signupForm');
+            const lt = $('loginTab'), st = $('signupTab');
+            if (tab === 'login') {
+                lf.classList.remove('hidden'); sf.classList.add('hidden');
+                lt.classList.add('bg-white', 'text-olive-800', 'shadow'); lt.classList.remove('text-olive-600');
+                st.classList.remove('bg-white', 'text-olive-800', 'shadow'); st.classList.add('text-olive-600');
+            } else {
+                lf.classList.add('hidden'); sf.classList.remove('hidden');
+                st.classList.add('bg-white', 'text-olive-800', 'shadow'); st.classList.remove('text-olive-600');
+                lt.classList.remove('bg-white', 'text-olive-800', 'shadow'); lt.classList.add('text-olive-600');
+            }
+        }
+
+        function renderMain() {
+            const g = globalData || { jackpot: { amt: 10000, players: 0 }, onlineCount: 0, tasks: getDefaultTasks() };
+            const onlineCount = g.onlineCount || 0;
+            
+            return `
+            <div class="min-h-screen flex flex-col bg-olive-50">
+                <!-- Header -->
+                <header class="bg-olive-600 text-white px-4 py-3 sticky top-0 z-40 shadow">
+                    <div class="max-w-lg mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎰</span>
+                            <div>
+                                <h1 class="text-lg font-bold">SpinWin</h1>
+                                <p class="text-xs text-olive-200">Level ${userData.level} • ${userData.name}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1 bg-olive-700/50 px-2 py-1 rounded-full">
+                                <span class="w-2 h-2 rounded-full bg-green-400 online-dot"></span>
+                                <span class="text-xs">${onlineCount} online</span>
+                            </div>
+                            <div class="flex items-center gap-1 bg-olive-700/50 px-3 py-1.5 rounded-full">
+                                <span class="text-sm">💰</span>
+                                <span class="font-bold text-sm">${fmtNum(userData.pts)}</span>
+                            </div>
+                            <button onclick="logout()" class="p-2 rounded-full bg-olive-700/50 hover:bg-red-500/80 transition" title="Logout">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Content -->
+                <main class="flex-1 p-4 pb-20 overflow-y-auto">
+                    <div class="max-w-lg mx-auto slide-up">
+                        ${renderView()}
+                    </div>
+                </main>
+                
+                <!-- Bottom Nav -->
+                <nav class="bg-white border-t border-olive-200 fixed bottom-0 left-0 right-0 z-40">
+                    <div class="max-w-lg mx-auto flex justify-around py-2">
+                        <button onclick="goView('home')" class="nav-btn flex flex-col items-center py-1 px-3 ${currentView === 'home' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">🏠</span>
+                            <span class="text-xs mt-0.5">Home</span>
+                        </button>
+                        <button onclick="goView('spin')" class="nav-btn flex flex-col items-center py-1 px-3 ${currentView === 'spin' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">🎰</span>
+                            <span class="text-xs mt-0.5">Spin</span>
+                        </button>
+                        <button onclick="goView('tasks')" class="nav-btn flex flex-col items-center py-1 px-3 ${currentView === 'tasks' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">📋</span>
+                            <span class="text-xs mt-0.5">Tasks</span>
+                        </button>
+                        <button onclick="goView('wallet')" class="nav-btn flex flex-col items-center py-1 px-3 ${currentView === 'wallet' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">💳</span>
+                            <span class="text-xs mt-0.5">Withdraw</span>
+                        </button>
+                        <button onclick="goView('profile')" class="nav-btn flex flex-col items-center py-1 px-3 relative ${currentView === 'profile' ? 'text-accent-orange' : 'text-olive-500'}">
+                            <span class="text-xl">👤</span>
+                            <span class="text-xs mt-0.5">Profile</span>
+                            ${userData.isAdmin ? '<span class="absolute -top-1 -right-1 w-4 h-4 bg-accent-orange rounded-full flex items-center justify-center text-[10px] text-white">👑</span>' : ''}
+                        </button>
+                    </div>
+                </nav>
+            </div>`;
+        }
+
+        function goView(v) { currentView = v; render(); }
+
+        function renderView() {
+            switch(currentView) {
+                case 'spin': return renderSpin();
+                case 'tasks': return renderTasks();
+                case 'wallet': return renderWallet();
+                case 'profile': return renderProfile();
+                case 'admin': return renderAdmin();
+                case 'leaderboard': return renderLeaderboard();
+                default: return renderHome();
+            }
+        }
+
+        // ===================== HOME VIEW =====================
+        function renderHome() {
+            const g = globalData || { jackpot: { amt: 10000, players: 0 }, tasks: getDefaultTasks() };
+            const today = new Date().toDateString();
+            const spinsLeft = Math.max(0, 10 - (userData.spinsToday || 0));
+            const doneTasks = Object.keys(userData.taskProgress || {}).filter(k => userData.taskProgress[k]).length;
+            const totalTasks = (g.tasks || getDefaultTasks()).filter(t => t.active).length;
+
+            return `
+            <!-- Balance Card -->
+            <div class="bg-gradient-to-br from-olive-600 to-olive-700 rounded-2xl p-5 text-white mb-4 shadow-lg">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-olive-200 text-sm">Balance</p>
+                        <p class="text-3xl font-bold">${fmtNum(userData.pts)}</p>
+                        <p class="text-olive-200 text-xs mt-1">≈ Rs. ${(userData.pts * 0.01).toFixed(2)}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-olive-200">Level ${userData.level}</p>
+                    </div>
+                </div>
+                <div class="mt-3 h-1.5 bg-olive-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-accent-orange rounded-full transition-all" style="width: ${Math.min(100, (userData.pts % 1000) / 10)}%"></div>
+                </div>
+                <p class="text-xs text-olive-200 mt-1">${userData.pts % 1000} / 1000 to Level ${userData.level + 1}</p>
+            </div>
+            
+            <!-- Spins Left -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎰</span>
+                        <div>
+                            <p class="font-semibold text-amber-800">Spins Left Today</p>
+                            <p class="text-xs text-amber-600">Reset at midnight</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-accent-orange">${spinsLeft}</p>
+                        <p class="text-xs text-amber-600">/ 10</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Jackpot Banner -->
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-4 mb-4 shadow cursor-pointer" onclick="goView('spin')">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-white/80 text-xs">JACKPOT</p>
+                        <p class="text-2xl font-bold text-white">${fmtNum(g.jackpot?.amt || 10000)}</p>
+                        <p class="text-white/60 text-xs">${g.jackpot?.players || 0} participants</p>
+                    </div>
+                    <span class="text-3xl">🎯</span>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="goView('spin')" class="bg-accent-orange hover:bg-accent-orangeHover text-white rounded-xl p-4 flex items-center gap-2 shadow transition">
+                    <span class="text-2xl">🎡</span>
+                    <div class="text-left">
+                        <p class="font-semibold">Spin</p>
+                        <p class="text-xs text-white/70">Win points!</p>
+                    </div>
+                </button>
+                <button onclick="goView('tasks')" class="bg-olive-700 hover:bg-olive-800 text-white rounded-xl p-4 flex items-center gap-2 shadow transition">
+                    <span class="text-2xl">📋</span>
+                    <div class="text-left">
+                        <p class="font-semibold">Tasks</p>
+                        <p class="text-xs text-white/70">${doneTasks}/${totalTasks} done</p>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">🎰</p>
+                    <p class="font-bold text-olive-700">${userData.spins || 0}</p>
+                    <p class="text-xs text-gray-500">Spins</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">💰</p>
+                    <p class="font-bold text-olive-700">${fmtNum(userData.totalEarned || 0)}</p>
+                    <p class="text-xs text-gray-500">Earned</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-olive-100">
+                    <p class="text-lg">👥</p>
+                    <p class="font-bold text-olive-700">${(userData.refs || []).length}</p>
+                    <p class="text-xs text-gray-500">Refs</p>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100">
+                    <p class="font-semibold text-olive-700">Recent Activity</p>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    ${(userData.txns || []).slice(-5).reverse().map(t => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${t.type === 'earn' ? '💰' : '📤'}</span>
+                                <div>
+                                    <p class="text-sm text-gray-700">${t.desc}</p>
+                                    <p class="text-xs text-gray-400">${fmtDate(t.time)}</p>
+                                </div>
+                            </div>
+                            <span class="font-semibold ${t.type === 'earn' ? 'text-green-600' : 'text-red-500'}">${t.type === 'earn' ? '+' : '-'}${fmtNum(t.amt)}</span>
+                        </div>
+                    `).join('') || '<div class="p-4 text-center text-gray-400 text-sm">No activity yet</div>'}
+                </div>
+            </div>`;
+        }
+
+        // ===================== SPIN VIEW =====================
+        function renderSpin() {
+            const g = globalData || { jackpot: { amt: 10000, players: 0 } };
+            const spinsLeft = Math.max(0, 10 - (userData.spinsToday || 0));
+
+            return `
+            <div class="text-center mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Spin the Wheel!</h2>
+                <p class="text-gray-500 text-sm">Cost: 10 pts per spin</p>
+            </div>
+            
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-center">
+                <p class="text-amber-800">Spins Left Today: <span class="font-bold text-accent-orange">${spinsLeft}</span> / 10</p>
+            </div>
+            
+            <div class="flex justify-center mb-4">
+                <div class="wheel-container">
+                    <div class="wheel-pointer"></div>
+                    <div id="wheel" class="wheel">
+                        ${PRIZES.map((p, i) => `<div class="wheel-segment" style="transform: rotate(${i * 45}deg); background: ${p.color};"><span>${p.label}</span></div>`).join('')}
+                    </div>
+                    <div class="wheel-center" onclick="spinWheel()">SPIN</div>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-4 mb-4 text-center">
+                <p class="text-white/80 text-xs">CURRENT JACKPOT</p>
+                <p class="text-2xl font-bold text-white">${fmtNum(g.jackpot?.amt || 10000)}</p>
+                <p class="text-white/60 text-xs">${g.jackpot?.players || 0} participants</p>
+            </div>
+            
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                <p class="font-semibold text-olive-700 mb-2">Prize Table</p>
+                <div class="grid grid-cols-4 gap-2">
+                    ${PRIZES.map(p => `<div class="flex items-center gap-1 text-xs"><div class="w-3 h-3 rounded" style="background: ${p.color}"></div><span>${p.label}</span><span class="text-gray-400">(${p.chance}%)</span></div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        async function spinWheel() {
+            if (spinning) return;
+            
+            const today = new Date().toDateString();
+            if (userData.lastSpinReset !== today) {
+                await updateUser({ spinsToday: 0, lastSpinReset: today });
+                userData.spinsToday = 0;
+            }
+            
+            if ((userData.spinsToday || 0) >= 10) {
+                toast('No spins left today!', 'error');
+                return;
+            }
+            
+            if (userData.pts < 10) {
+                toast('Need 10 points to spin!', 'error');
+                return;
+            }
+            
+            spinning = true;
+            
+            // Determine prize
+            const rand = Math.random() * 100;
+            let cum = 0, prize = PRIZES[0];
+            for (const p of PRIZES) {
+                cum += p.chance;
+                if (rand <= cum) { prize = p; break; }
+            }
+            
+            // Rotation
+            const segAngle = 45;
+            const idx = PRIZES.indexOf(prize);
+            const targetRot = 360 - (idx * segAngle + segAngle / 2);
+            const totalRot = 360 * 5 + targetRot;
+            
+            const wheel = $('wheel');
+            wheel.style.transform = `rotate(${totalRot}deg)`;
+            
+            // Deduct cost immediately
+            const newPts = userData.pts - 10;
+            const newSpins = (userData.spins || 0) + 1;
+            const newSpinsToday = (userData.spinsToday || 0) + 1;
+            
+            await updateUser({ pts: newPts, spins: newSpins, spinsToday: newSpinsToday });
+            
+            // Update global spins
+            db.ref('global/stats/totalSpins').transaction(c => (c || 0) + 1);
+            
+            setTimeout(async () => {
+                spinning = false;
+                
+                let winAmt = 0;
+                let desc = '';
+                
+                if (prize.val === 'jp') {
+                    // Jackpot!
+                    const jpSnap = await db.ref('global/jackpot').once('value');
+                    const jp = jpSnap.val() || { amt: 10000 };
+                    winAmt = jp.amt;
+                    desc = '🎰 JACKPOT WIN!';
+                    
+                    // Reset jackpot
+                    await db.ref('global/jackpot').set({ amt: 10000, players: 0, lastWon: { userId: currentUser.uid, name: userData.name, amt: winAmt, time: new Date().toISOString() } });
+                    
+                    // Update user
+                    const newPts2 = userData.pts + winAmt;
+                    const newEarned = userData.totalEarned + winAmt;
+                    const txns = [...(userData.txns || []), { id: 't_' + Date.now(), type: 'earn', amt: winAmt, desc, time: new Date().toISOString() }].slice(-50);
+                    
+                    await updateUser({ pts: newPts2, totalEarned: newEarned, txns, 'stats/jpWins': (userData.stats?.jpWins || 0) + 1 });
+                    
+                    toast(`🎉 JACKPOT! ${fmtNum(winAmt)} pts!`, 'success');
+                    confetti();
+                } else {
+                    winAmt = prize.val;
+                    desc = `Spin: ${prize.label} pts`;
+                    
+                    const newPts2 = userData.pts + winAmt;
+                    const newEarned = userData.totalEarned + winAmt;
+                    const txns = [...(userData.txns || []), { id: 't_' + Date.now(), type: 'earn', amt: winAmt, desc, time: new Date().toISOString() }].slice(-50);
+                    
+                    await updateUser({ pts: newPts2, totalEarned: newEarned, txns });
+                    
+                    if (winAmt > (userData.stats?.bigWin || 0)) {
+                        await updateUser({ 'stats/bigWin': winAmt });
+                    }
+                    
+                    toast(`Won ${winAmt} pts!`, 'success');
+                    if (winAmt >= 500) confetti();
+                }
+                
+                // Increase jackpot
+                db.ref('global/jackpot/amt').transaction(c => (c || 10000) + 10);
+                db.ref('global/jackpot/players').transaction(c => (c || 0) + 1);
+                db.ref('global/stats/totalEarned').transaction(c => (c || 0) + winAmt);
+                
+                render();
+            }, 4000);
+        }
+
+        // ===================== TASKS VIEW =====================
+        function renderTasks() {
+            const g = globalData || { tasks: getDefaultTasks() };
+            const tasks = g.tasks || getDefaultTasks();
+            const progress = userData.taskProgress || {};
+            const doneTasks = tasks.filter(t => t.active && progress[t.id]).length;
+            const totalTasks = tasks.filter(t => t.active).length;
+            const availPts = tasks.filter(t => t.active && !progress[t.id]).reduce((s, t) => s + t.pts, 0);
+
+            return `
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-olive-700">Tasks</h2>
+                    <p class="text-gray-500 text-sm">Complete to earn points</p>
+                </div>
+            </div>
+            
+            <div class="bg-olive-600 rounded-xl p-4 mb-4 text-white">
+                <div class="flex justify-between">
+                    <div>
+                        <p class="text-olive-200 text-xs">Completed</p>
+                        <p class="text-xl font-bold">${doneTasks}/${totalTasks}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-olive-200 text-xs">Available</p>
+                        <p class="text-xl font-bold">${fmtNum(availPts)}</p>
+                    </div>
+                </div>
+                <div class="mt-2 h-2 bg-olive-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-accent-orange rounded-full transition-all" style="width: ${(doneTasks / totalTasks) * 100}%"></div>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                ${tasks.filter(t => t.active).map(t => `
+                    <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100 ${progress[t.id] ? 'opacity-60' : ''} flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">${t.icon}</span>
+                            <div>
+                                <p class="font-medium text-gray-700">${t.title}</p>
+                                <p class="text-xs text-gray-400">${t.desc}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-accent-orange">+${t.pts}</p>
+                            ${progress[t.id] ? '<span class="text-xs text-green-600">✓ Done</span>' : `<button onclick="completeTask(${t.id}, ${t.pts})" class="text-xs bg-olive-600 text-white px-3 py-1 rounded-full hover:bg-olive-700">Do it</button>`}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+
+        async function completeTask(taskId, pts) {
+            const progress = userData.taskProgress || {};
+            if (progress[taskId]) return;
+            
+            progress[taskId] = true;
+            const newPts = userData.pts + pts;
+            const newEarned = userData.totalEarned + pts;
+            const txns = [...(userData.txns || []), { id: 't_' + Date.now(), type: 'earn', amt: pts, desc: `Task completed!`, time: new Date().toISOString() }].slice(-50);
+            
+            await updateUser({ taskProgress: progress, pts: newPts, totalEarned: newEarned, txns });
+            
+            db.ref('global/stats/totalEarned').transaction(c => (c || 0) + pts);
+            
+            toast(`+${pts} pts!`, 'success');
+            render();
+        }
+
+        // ===================== WALLET VIEW =====================
+        function renderWallet() {
+            const pending = (userData.wds || []).filter(w => w.status === 'pending');
+            const completed = (userData.wds || []).filter(w => w.status === 'completed');
+            const totalWd = completed.reduce((s, w) => s + w.amt, 0);
+
+            return `
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Wallet</h2>
+                <p class="text-gray-500 text-sm">Withdraw your earnings</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-olive-600 to-olive-700 rounded-2xl p-5 text-white mb-4 shadow-lg">
+                <p class="text-olive-200 text-sm">Available Balance</p>
+                <p class="text-3xl font-bold">${fmtNum(userData.pts)}</p>
+                <p class="text-olive-200 text-xs">≈ Rs. ${(userData.pts * 0.01).toFixed(2)} PKR</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Earned</p>
+                    <p class="font-bold text-olive-600">${fmtNum(userData.totalEarned || 0)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Withdrawn</p>
+                    <p class="font-bold text-olive-700">${fmtNum(totalWd)}</p>
+                </div>
+            </div>
+            
+            <button onclick="showWdModal()" class="w-full bg-olive-700 hover:bg-olive-800 text-white font-semibold py-3 rounded-xl mb-4 shadow transition flex items-center justify-center gap-2">
+                <span>💳</span> Withdraw Funds
+            </button>
+            
+            ${pending.length > 0 ? `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                    <p class="font-medium text-amber-800 mb-2">⏳ Pending Withdrawals</p>
+                    ${pending.map(w => `<div class="flex justify-between py-1 text-sm"><span class="text-amber-700">${fmtNum(w.amt)} pts</span><span class="text-amber-600">${w.method}</span></div>`).join('')}
+                </div>
+            ` : ''}
+            
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100">
+                    <p class="font-semibold text-olive-700">Transaction History</p>
+                </div>
+                <div class="divide-y divide-olive-50 max-h-60 overflow-y-auto">
+                    ${(userData.txns || []).slice(-10).reverse().map(t => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span>${t.type === 'earn' ? '💰' : '📤'}</span>
+                                <div>
+                                    <p class="text-sm text-gray-700">${t.desc}</p>
+                                    <p class="text-xs text-gray-400">${fmtDate(t.time)}</p>
+                                </div>
+                            </div>
+                            <span class="font-semibold ${t.type === 'earn' ? 'text-green-600' : 'text-red-500'}">${t.type === 'earn' ? '+' : '-'}${fmtNum(t.amt)}</span>
+                        </div>
+                    `).join('') || '<div class="p-4 text-center text-gray-400 text-sm">No transactions</div>'}
+                </div>
+            </div>`;
+        }
+
+        function showWdModal() {
+            $('modalContent').innerHTML = `
+                <div class="p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-olive-700">Withdraw Funds</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-3">Available: <span class="font-bold text-olive-600">${fmtNum(userData.pts)} pts</span> (min 1000)</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount (points)</label>
+                            <input type="number" id="wdAmt" min="1000" max="${userData.pts}" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Min 1000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Method</label>
+                            <select id="wdMethod" class="w-full p-3 border border-gray-200 rounded-lg">
+                                <option value="easypaisa">📱 Easypaisa</option>
+                                <option value="jazzcash">💳 JazzCash</option>
+                                <option value="bank">🏦 Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                            <input type="text" id="wdAcc" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Enter account">
+                        </div>
+                        <button onclick="submitWd()" class="w-full bg-olive-600 hover:bg-olive-700 text-white font-semibold py-3 rounded-lg transition">Submit Request</button>
+                    </div>
+                </div>`;
+            $('modal').classList.remove('hidden');
+        }
+
+        async function submitWd() {
+            const amt = parseInt($('wdAmt').value);
+            const method = $('wdMethod').value;
+            const acc = $('wdAcc').value;
+            
+            if (!amt || amt < 1000) { toast('Minimum 1000 pts', 'error'); return; }
+            if (amt > userData.pts) { toast('Insufficient balance', 'error'); return; }
+            if (!acc) { toast('Enter account number', 'error'); return; }
+            
+            const wd = { id: 'wd_' + Date.now(), userId: currentUser.uid, userName: userData.name, userEmail: userData.email, amt, method, acc, status: 'pending', time: new Date().toISOString() };
+            
+            // Add to user's withdrawals
+            const wds = [...(userData.wds || []), wd];
+            const newPts = userData.pts - amt;
+            const txns = [...(userData.txns || []), { id: 't_' + Date.now(), type: 'spend', amt, desc: 'Withdrawal request', time: new Date().toISOString() }].slice(-50);
+            
+            await updateUser({ wds, pts: newPts, txns });
+            
+            // Add to global pending withdrawals
+            await db.ref(`withdrawals/${wd.id}`).set(wd);
+            
+            closeModal();
+            toast('Request submitted!', 'success');
+            render();
+        }
+
+        // ===================== PROFILE VIEW =====================
+        function renderProfile() {
+            return `
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-olive-700">Profile</h2>
+                <p class="text-gray-500 text-sm">Manage your account</p>
+            </div>
+            
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 bg-gradient-to-br from-olive-500 to-olive-600 rounded-full flex items-center justify-center">
+                        <span class="text-white text-xl font-bold">${userData.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-800">${userData.name}</p>
+                        <p class="text-sm text-gray-500">${userData.email}</p>
+                        <div class="flex gap-1 mt-1">
+                            ${userData.isAdmin ? '<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">👑 Admin</span>' : ''}
+                            <span class="text-xs bg-olive-100 text-olive-700 px-2 py-0.5 rounded-full">Level ${userData.level}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-olive-100 mb-4">
+                <p class="font-semibold text-olive-700 mb-2">👥 Refer & Earn</p>
+                <div class="flex items-center gap-2">
+                    <code class="flex-1 bg-olive-50 px-3 py-2 rounded border border-olive-200 font-mono text-olive-600 font-bold">${userData.refCode}</code>
+                    <button onclick="navigator.clipboard.writeText('${userData.refCode}');toast('Copied!','success')" class="bg-olive-600 text-white px-3 py-2 rounded hover:bg-olive-700">Copy</button>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Earn 100 pts per referral!</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Spins</p>
+                    <p class="font-bold text-olive-700">${userData.spins || 0}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Earned</p>
+                    <p class="font-bold text-olive-600">${fmtNum(userData.totalEarned || 0)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Biggest Win</p>
+                    <p class="font-bold text-amber-600">${fmtNum(userData.stats?.bigWin || 0)}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Jackpot Wins</p>
+                    <p class="font-bold text-purple-600">${userData.stats?.jpWins || 0}</p>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 divide-y divide-olive-50">
+                <button onclick="currentView='leaderboard';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                    <div class="flex items-center gap-2"><span>🏆</span><span class="text-gray-700">Leaderboard</span></div>
+                    <span class="text-gray-400">→</span>
+                </button>
+                ${userData.isAdmin ? `
+                    <button onclick="currentView='admin';render()" class="w-full p-3 flex items-center justify-between hover:bg-olive-50 transition">
+                        <div class="flex items-center gap-2"><span>⚙️</span><span class="text-gray-700">Admin Panel</span></div>
+                        <span class="text-gray-400">→</span>
+                    </button>
+                ` : ''}
+            </div>`;
+        }
+
+        // ===================== LEADERBOARD VIEW =====================
+        async function renderLeaderboard() {
+            // This will be populated by real-time data
+            return `
+            <div class="mb-4">
+                <button onclick="currentView='profile';render()" class="text-olive-600 text-sm mb-2">← Back</button>
+                <h2 class="text-xl font-bold text-olive-700">🏆 Leaderboard</h2>
+                <p class="text-gray-500 text-sm">Top earners</p>
+            </div>
+            <div id="leaderboardContent" class="bg-white rounded-xl shadow-sm border border-olive-100 divide-y divide-olive-50">
+                <div class="p-4 text-center text-gray-400">Loading...</div>
+            </div>`;
+        }
+
+        // ===================== ADMIN PANEL =====================
+        function renderAdmin() {
+            if (!userData.isAdmin) return '<div class="p-4 text-center text-red-500">Access denied</div>';
+            
+            return `
+            <!-- Admin Header -->
+            <div class="bg-gradient-to-r from-olive-600 to-olive-700 rounded-xl p-4 mb-4 text-white">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xl">⚙️</span>
+                    <h2 class="text-lg font-bold">Admin Dashboard</h2>
+                </div>
+                <p class="text-olive-200 text-sm">Manage users, tasks, withdrawals & more</p>
+            </div>
+            
+            <!-- Real-time Status -->
+            <div class="bg-white rounded-xl p-3 mb-4 shadow-sm border border-olive-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 online-dot"></span>
+                    <span class="text-sm text-gray-600">Real-time: Connected</span>
+                </div>
+                <div class="flex items-center gap-1 text-sm text-gray-500">
+                    <span>👥</span>
+                    <span id="adminOnlineCount">${globalData?.onlineCount || 0} online</span>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Users</p>
+                    <p class="text-xl font-bold text-olive-700">${globalData?.stats?.totalUsers || 0}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100 cursor-pointer" onclick="showPendingWd()">
+                    <p class="text-gray-500 text-xs">Pending WD</p>
+                    <p class="text-xl font-bold text-amber-600" id="pendingWdCount">0</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Total Spins</p>
+                    <p class="text-xl font-bold text-olive-600">${globalData?.stats?.totalSpins || 0}</p>
+                </div>
+                <div class="bg-white rounded-xl p-3 shadow-sm border border-olive-100">
+                    <p class="text-gray-500 text-xs">Jackpot</p>
+                    <p class="text-xl font-bold text-amber-500">${fmtNum(globalData?.jackpot?.amt || 10000)}</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl p-3 mb-4 shadow-sm border border-olive-100">
+                <p class="font-semibold text-olive-700 mb-2">Quick Actions</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="showAddPtsModal()" class="bg-olive-600 hover:bg-olive-700 text-white py-2 rounded-lg text-sm transition">💰 Add Points</button>
+                    <button onclick="showAddTaskModal()" class="bg-accent-orange hover:bg-accent-orangeHover text-white py-2 rounded-lg text-sm transition">📋 Add Task</button>
+                    <button onclick="showAnnounceModal()" class="bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition">📢 Announce</button>
+                    <button onclick="triggerJP()" class="bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg text-sm transition">🎰 Trigger JP</button>
+                </div>
+            </div>
+            
+            <!-- Users List -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 mb-4">
+                <div class="p-3 border-b border-olive-100 flex justify-between items-center">
+                    <p class="font-semibold text-olive-700">👥 Users</p>
+                    <span class="text-xs bg-olive-100 text-olive-700 px-2 py-0.5 rounded-full" id="usersCount">Loading...</span>
+                </div>
+                <div id="usersList" class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    <div class="p-4 text-center text-gray-400">Loading users...</div>
+                </div>
+            </div>
+            
+            <!-- Pending Withdrawals -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100 mb-4">
+                <div class="p-3 border-b border-olive-100 flex justify-between items-center">
+                    <p class="font-semibold text-olive-700">💳 Pending Withdrawals</p>
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full" id="wdBadge">0</span>
+                </div>
+                <div id="wdList" class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    <div class="p-4 text-center text-gray-400">Loading...</div>
+                </div>
+            </div>
+            
+            <!-- Task Management -->
+            <div class="bg-white rounded-xl shadow-sm border border-olive-100">
+                <div class="p-3 border-b border-olive-100 flex justify-between items-center">
+                    <p class="font-semibold text-olive-700">📋 Task Management</p>
+                </div>
+                <div id="tasksList" class="divide-y divide-olive-50 max-h-48 overflow-y-auto">
+                    <div class="p-4 text-center text-gray-400">Loading tasks...</div>
+                </div>
+            </div>`;
+        }
+
+        // Admin helper functions
+        function loadAdminData() {
+            // Load users
+            db.ref('users').orderByChild('totalEarned').limitToLast(20).on('value', snap => {
+                const users = [];
+                snap.forEach(u => users.push({ id: u.key, ...u.val() }));
+                users.sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
+                
+                if ($('usersList')) {
+                    $('usersList').innerHTML = users.map(u => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 bg-olive-200 rounded-full flex items-center justify-center ${u.online ? 'ring-2 ring-green-400' : ''}">
+                                    <span class="text-olive-700 font-bold text-sm">${u.name.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-700">${u.name} ${u.isAdmin ? '👑' : ''} ${u.online ? '<span class="text-green-500 text-xs">●</span>' : ''}</p>
+                                    <p class="text-xs text-gray-400">${u.email}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-olive-600 text-sm">${fmtNum(u.pts || 0)} pts</p>
+                                <p class="text-xs text-gray-400">Lvl ${u.level || 1}</p>
+                            </div>
+                        </div>
+                    `).join('') || '<div class="p-4 text-center text-gray-400">No users yet</div>';
+                    $('usersCount').textContent = users.length + ' users';
+                }
+            });
+            
+            // Load withdrawals
+            db.ref('withdrawals').orderByChild('status').equalTo('pending').on('value', snap => {
+                const wds = [];
+                snap.forEach(w => wds.push({ id: w.key, ...w.val() }));
+                
+                if ($('wdList')) {
+                    $('wdList').innerHTML = wds.length > 0 ? wds.map(w => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div>
+                                <p class="font-medium text-gray-700">${fmtNum(w.amt)} pts</p>
+                                <p class="text-xs text-gray-400">${w.method} - ${w.acc}</p>
+                                <p class="text-xs text-gray-400">${w.userName} (${w.userEmail})</p>
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="processWd('${w.id}','completed')" class="bg-green-100 hover:bg-green-200 text-green-600 p-1.5 rounded transition">✓</button>
+                                <button onclick="processWd('${w.id}','rejected')" class="bg-red-100 hover:bg-red-200 text-red-600 p-1.5 rounded transition">✕</button>
+                            </div>
+                        </div>
+                    `).join('') : '<div class="p-4 text-center text-gray-400">No pending withdrawals</div>';
+                    $('wdBadge').textContent = wds.length;
+                    $('pendingWdCount').textContent = wds.length;
+                }
+            });
+            
+            // Load tasks
+            db.ref('global/tasks').on('value', snap => {
+                const tasks = snap.val() || getDefaultTasks();
+                if ($('tasksList')) {
+                    $('tasksList').innerHTML = tasks.map(t => `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl">${t.icon}</span>
+                                <div>
+                                    <p class="text-sm text-gray-700">${t.title}</p>
+                                    <p class="text-xs text-gray-400">+${t.pts} pts</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs ${t.active ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'} px-2 py-0.5 rounded-full">${t.active ? 'Active' : 'Inactive'}</span>
+                                <button onclick="toggleTask(${t.id})" class="text-xs bg-olive-100 text-olive-700 px-2 py-1 rounded hover:bg-olive-200">${t.active ? 'Disable' : 'Enable'}</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+
+        async function processWd(wdId, status) {
+            const wdSnap = await db.ref(`withdrawals/${wdId}`).once('value');
+            const wd = wdSnap.val();
+            if (!wd) return;
+            
+            await db.ref(`withdrawals/${wdId}/status`).set(status);
+            
+            // Find user and update
+            if (status === 'rejected') {
+                const userSnap = await db.ref('users').orderByChild('email').equalTo(wd.userEmail).once('value');
+                if (userSnap.exists()) {
+                    const userId = Object.keys(userSnap.val())[0];
+                    const u = Object.values(userSnap.val())[0];
+                    await db.ref(`users/${userId}`).update({
+                        pts: (u.pts || 0) + wd.amt,
+                        txns: [...(u.txns || []), { id: 't_' + Date.now(), type: 'earn', amt: wd.amt, desc: 'Withdrawal refunded', time: new Date().toISOString() }].slice(-50)
+                    });
+                }
+            } else {
+                // Update user's withdrawal status
+                const userSnap = await db.ref('users').orderByChild('email').equalTo(wd.userEmail).once('value');
+                if (userSnap.exists()) {
+                    const userId = Object.keys(userSnap.val())[0];
+                    const u = Object.values(userSnap.val())[0];
+                    const wds = (u.wds || []).map(w => w.id === wdId ? { ...w, status } : w);
+                    await db.ref(`users/${userId}/wds`).set(wds);
+                }
+            }
+            
+            toast(`Withdrawal ${status}`, 'success');
+        }
+
+        function showAddPtsModal() {
+            $('modalContent').innerHTML = `
+                <div class="p-5">
+                    <h3 class="text-lg font-bold text-olive-700 mb-4">💰 Add Points to User</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">User Email</label>
+                            <input type="email" id="addPtsEmail" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="user@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                            <input type="number" id="addPtsAmount" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Amount">
+                        </div>
+                        <button onclick="adminAddPts()" class="w-full bg-olive-600 text-white py-3 rounded-lg">Add Points</button>
+                    </div>
+                </div>`;
+            $('modal').classList.remove('hidden');
+        }
+
+        async function adminAddPts() {
+            const email = $('addPtsEmail').value;
+            const amt = parseInt($('addPtsAmount').value);
+            if (!email || !amt) { toast('Fill all fields', 'error'); return; }
+            
+            const snap = await db.ref('users').orderByChild('email').equalTo(email.toLowerCase()).once('value');
+            if (!snap.exists()) { toast('User not found', 'error'); return; }
+            
+            const userId = Object.keys(snap.val())[0];
+            const u = Object.values(snap.val())[0];
+            
+            await db.ref(`users/${userId}`).update({
+                pts: (u.pts || 0) + amt,
+                totalEarned: (u.totalEarned || 0) + amt,
+                txns: [...(u.txns || []), { id: 't_' + Date.now(), type: 'earn', amt, desc: '👑 Admin bonus', time: new Date().toISOString() }].slice(-50)
+            });
+            
+            closeModal();
+            toast(`Added ${amt} pts to ${u.name}`, 'success');
+        }
+
+        function showAddTaskModal() {
+            $('modalContent').innerHTML = `
+                <div class="p-5">
+                    <h3 class="text-lg font-bold text-olive-700 mb-4">📋 Add New Task</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                            <input type="text" id="taskTitle" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Task title">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <input type="text" id="taskDesc" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Task description">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                            <input type="number" id="taskPts" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="Points reward">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Icon (emoji)</label>
+                            <input type="text" id="taskIcon" class="w-full p-3 border border-gray-200 rounded-lg" placeholder="🎯" maxlength="2">
+                        </div>
+                        <button onclick="adminAddTask()" class="w-full bg-olive-600 text-white py-3 rounded-lg">Add Task</button>
+                    </div>
+                </div>`;
+            $('modal').classList.remove('hidden');
+        }
+
+        async function adminAddTask() {
+            const title = $('taskTitle').value;
+            const desc = $('taskDesc').value;
+            const pts = parseInt($('taskPts').value);
+            const icon = $('taskIcon').value || '📋';
+            
+            if (!title || !pts) { toast('Fill required fields', 'error'); return; }
+            
+            const tasksSnap = await db.ref('global/tasks').once('value');
+            const tasks = tasksSnap.val() || getDefaultTasks();
+            const newId = Math.max(...tasks.map(t => t.id)) + 1;
+            
+            tasks.push({ id: newId, title, desc, pts, icon, active: true });
+            await db.ref('global/tasks').set(tasks);
+            
+            closeModal();
+            toast('Task added!', 'success');
+        }
+
+        async function toggleTask(taskId) {
+            const tasksSnap = await db.ref('global/tasks').once('value');
+            const tasks = tasksSnap.val() || getDefaultTasks();
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.active = !task.active;
+                await db.ref('global/tasks').set(tasks);
+                toast(`Task ${task.active ? 'enabled' : 'disabled'}`, 'success');
+            }
+        }
+
+        function showAnnounceModal() {
+            $('modalContent').innerHTML = `
+                <div class="p-5">
+                    <h3 class="text-lg font-bold text-olive-700 mb-4">📢 Send Announcement</h3>
+                    <div class="space-y-3">
+                        <textarea id="announceMsg" class="w-full p-3 border border-gray-200 rounded-lg h-32" placeholder="Your announcement..."></textarea>
+                        <button onclick="adminAnnounce()" class="w-full bg-amber-500 text-white py-3 rounded-lg">Send to All Users</button>
+                    </div>
+                </div>`;
+            $('modal').classList.remove('hidden');
+        }
+
+        async function adminAnnounce() {
+            const msg = $('announceMsg').value;
+            if (!msg) { toast('Enter message', 'error'); return; }
+            
+            await db.ref('global/announcements').push({
+                msg,
+                time: new Date().toISOString(),
+                from: 'Admin'
+            });
+            
+            closeModal();
+            toast('Announcement sent!', 'success');
+        }
+
+        async function triggerJP() {
+            if (!confirm('Trigger jackpot for yourself?')) return;
+            
+            const jpSnap = await db.ref('global/jackpot').once('value');
+            const jp = jpSnap.val() || { amt: 10000 };
+            
+            const amt = jp.amt;
+            const txns = [...(userData.txns || []), { id: 't_' + Date.now(), type: 'earn', amt, desc: '🎰 Admin triggered JACKPOT!', time: new Date().toISOString() }].slice(-50);
+            
+            await updateUser({ pts: userData.pts + amt, totalEarned: userData.totalEarned + amt, txns, 'stats/jpWins': (userData.stats?.jpWins || 0) + 1 });
+            await db.ref('global/jackpot').set({ amt: 10000, players: 0 });
+            
+            confetti();
+            toast(`Jackpot! ${fmtNum(amt)} pts!`, 'success');
+        }
+
+        function showPendingWd() {
+            currentView = 'admin';
+            render();
+            setTimeout(() => {
+                if ($('wdList')) $('wdList').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // ===================== INIT =====================
+        function init() {
+            initAuth();
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
 
