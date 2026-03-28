@@ -1,1 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Under Maintenance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #04080f;
+      --surface: #0c1320;
+      --accent: #00e5ff;
+      --accent2: #ff6b35;
+      --accent3: #7c3aed;
+      --text: #e8f0fe;
+      --muted: #4a6080;
+      --glow: rgba(0, 229, 255, 0.15);
+    }
 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    .grid-bg {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridPan 20s linear infinite;
+    }
+    @keyframes gridPan {
+      0%   { background-position: 0 0; }
+      100% { background-position: 60px 60px; }
+    }
+
+    /* ── RADIAL GLOWS ── */
+    .glow-orb {
+      position: fixed; border-radius: 50%; pointer-events: none; filter: blur(80px); z-index: 0;
+    }
+    .glow-orb.one {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0,229,255,.12), transparent 70%);
+      top: -200px; left: -150px;
+      animation: orbFloat1 12s ease-in-out infinite;
+    }
+    .glow-orb.two {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(255,107,53,.1), transparent 70%);
+      bottom: -180px; right: -100px;
+      animation: orbFloat2 15s ease-in-out infinite;
+    }
+    .glow-orb.three {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(124,58,237,.1), transparent 70%);
+      top: 40%; left: 55%;
+      animation: orbFloat3 18s ease-in-out infinite;
+    }
+    @keyframes orbFloat1 {
+      0%,100% { transform: translate(0,0); }
+      50%      { transform: translate(60px,40px); }
+    }
+    @keyframes orbFloat2 {
+      0%,100% { transform: translate(0,0); }
+      50%      { transform: translate(-50px,-30px); }
+    }
+    @keyframes orbFloat3 {
+      0%,100% { transform: translate(0,0); }
+      33%      { transform: translate(-40px,30px); }
+      66%      { transform: translate(40px,-20px); }
+    }
+
+    /* ── FLOATING PARTICLES ── */
+    .particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+    .particle {
+      position: absolute; border-radius: 50%;
+      background: var(--accent); opacity: 0;
+      animation: particleFly linear infinite;
+    }
+    @keyframes particleFly {
+      0%   { opacity: 0; transform: translateY(0) scale(0); }
+      10%  { opacity: .6; }
+      90%  { opacity: .2; }
+      100% { opacity: 0; transform: translateY(-100vh) scale(1.5); }
+    }
+
+    /* ── MAIN CARD ── */
+    .card {
+      position: relative; z-index: 10;
+      background: rgba(12,19,32,.7);
+      border: 1px solid rgba(0,229,255,.15);
+      border-radius: 24px;
+      padding: 64px 72px;
+      max-width: 680px; width: 90%;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 60px rgba(0,229,255,.06), 0 40px 80px rgba(0,0,0,.5);
+      animation: cardIn 1.2s cubic-bezier(.22,1,.36,1) forwards;
+      opacity: 0; transform: translateY(40px);
+      text-align: center;
+    }
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Corner accents */
+    .card::before, .card::after {
+      content: ''; position: absolute; width: 28px; height: 28px;
+      border-color: var(--accent); border-style: solid; opacity: .5;
+    }
+    .card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; border-radius: 24px 0 0 0; }
+    .card::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; border-radius: 0 0 24px 0; }
+
+    /* ── ICON GEAR ── */
+    .icon-wrap {
+      width: 96px; height: 96px; margin: 0 auto 36px;
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .icon-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 1.5px solid transparent;
+      background: conic-gradient(var(--accent), var(--accent3), var(--accent2), var(--accent)) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: destination-out;
+      mask-composite: exclude;
+      animation: spin 4s linear infinite;
+    }
+    .icon-ring.slow { animation: spin 9s linear infinite reverse; transform-origin: center; }
+    .icon-ring { width: 96px; height: 96px; }
+    .icon-ring.slow { width: 82px; height: 82px; position: absolute; top: 7px; left: 7px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .gear-svg { width: 46px; height: 46px; fill: var(--accent); animation: gearSpin 3s linear infinite; }
+    @keyframes gearSpin { to { transform: rotate(360deg); } }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.2);
+      color: var(--accent); font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      padding: 6px 16px; border-radius: 100px; margin-bottom: 28px;
+    }
+    .badge-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,229,255,.5); }
+      50%      { opacity: .5; box-shadow: 0 0 0 6px rgba(0,229,255,0); }
+    }
+
+    /* ── HEADING ── */
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3.2rem);
+      font-weight: 800; letter-spacing: -1px;
+      line-height: 1.1; margin-bottom: 20px;
+      background: linear-gradient(135deg, #e8f0fe 30%, var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      animation: fadeUp .9s .3s cubic-bezier(.22,1,.36,1) both;
+    }
+    p.sub {
+      color: rgba(232,240,254,.5); font-size: 1rem; line-height: 1.7;
+      font-weight: 400; margin-bottom: 44px;
+      animation: fadeUp .9s .5s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap {
+      margin-bottom: 36px;
+      animation: fadeUp .9s .7s cubic-bezier(.22,1,.36,1) both;
+    }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); margin-bottom: 10px; letter-spacing: 1px;
+    }
+    .progress-track {
+      height: 4px; background: rgba(255,255,255,.06); border-radius: 100px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 100px;
+      background: linear-gradient(90deg, var(--accent3), var(--accent));
+      width: 0%;
+      animation: fillBar 3.5s 1.2s cubic-bezier(.34,1.56,.64,1) forwards;
+      box-shadow: 0 0 16px rgba(0,229,255,.4);
+    }
+    @keyframes fillBar { to { width: 73%; } }
+
+    /* ── STATS ROW ── */
+    .stats {
+      display: flex; gap: 1px;
+      border: 1px solid rgba(0,229,255,.1); border-radius: 14px; overflow: hidden;
+      margin-bottom: 40px;
+      animation: fadeUp .9s .9s cubic-bezier(.22,1,.36,1) both;
+    }
+    .stat {
+      flex: 1; padding: 18px 12px;
+      background: rgba(0,229,255,.03);
+      transition: background .2s;
+    }
+    .stat:hover { background: rgba(0,229,255,.08); }
+    .stat + .stat { border-left: 1px solid rgba(0,229,255,.1); }
+    .stat-val {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--text), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-lbl {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px;
+    }
+
+    /* ── NOTIFY FORM ── */
+    .notify {
+      display: flex; gap: 10px;
+      animation: fadeUp .9s 1.1s cubic-bezier(.22,1,.36,1) both;
+    }
+    .notify input {
+      flex: 1; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(0,229,255,.15); border-radius: 10px;
+      color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+      padding: 14px 18px; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .notify input::placeholder { color: var(--muted); }
+    .notify input:focus {
+      border-color: rgba(0,229,255,.5);
+      box-shadow: 0 0 0 3px rgba(0,229,255,.08);
+    }
+    .notify button {
+      background: linear-gradient(135deg, var(--accent3), var(--accent));
+      border: none; border-radius: 10px; padding: 14px 22px;
+      color: var(--bg); font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 13px; cursor: pointer; white-space: nowrap;
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(0,229,255,.25);
+    }
+    .notify button:hover {
+      opacity: .9; transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0,229,255,.35);
+    }
+    .notify button:active { transform: translateY(0); }
+
+    /* ── SUCCESS MESSAGE ── */
+    .success-msg {
+      display: none; align-items: center; justify-content: center; gap: 10px;
+      background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.2);
+      border-radius: 10px; padding: 14px 20px;
+      font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent);
+    }
+
+    /* ── FOOTER ── */
+    .footer-links {
+      margin-top: 40px; display: flex; justify-content: center; gap: 28px;
+      animation: fadeUp .9s 1.3s cubic-bezier(.22,1,.36,1) both;
+    }
+    .footer-links a {
+      color: var(--muted); font-family: 'DM Mono', monospace;
+      font-size: 11px; text-decoration: none; letter-spacing: 1px;
+      transition: color .2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    /* ── SCANLINE EFFECT ── */
+    .scanlines {
+      position: fixed; inset: 0; pointer-events: none; z-index: 99;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,.03) 2px,
+        rgba(0,0,0,.03) 4px
+      );
+    }
+
+    /* ── TICKER ── */
+    .ticker-wrap {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(0,229,255,.06); border-top: 1px solid rgba(0,229,255,.1);
+      padding: 10px 0; overflow: hidden; z-index: 20;
+    }
+    .ticker {
+      display: flex; gap: 0;
+      animation: tickerScroll 30s linear infinite;
+      white-space: nowrap;
+    }
+    .ticker span {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+      padding: 0 40px;
+    }
+    .ticker span em {
+      color: var(--accent); font-style: normal; margin: 0 6px;
+    }
+    @keyframes tickerScroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background layers -->
+  <div class="grid-bg"></div>
+  <div class="glow-orb one"></div>
+  <div class="glow-orb two"></div>
+  <div class="glow-orb three"></div>
+  <div class="particles" id="particles"></div>
+  <div class="scanlines"></div>
+
+  <!-- Main card -->
+  <div class="card">
+
+    <!-- Icon -->
+    <div class="icon-wrap">
+      <div class="icon-ring"></div>
+      <div class="icon-ring slow"></div>
+      <svg class="gear-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.68.07-1.08s-.03-.74-.07-1.08l2.32-1.8c.21-.17.27-.45.13-.68l-2.2-3.81c-.13-.23-.42-.31-.65-.23l-2.73 1.1c-.57-.43-1.18-.78-1.86-1.05l-.41-2.91A.523.523 0 0 0 14 2h-4c-.27 0-.5.19-.52.44l-.41 2.91c-.68.27-1.29.63-1.86 1.05l-2.73-1.1c-.24-.09-.52 0-.65.23l-2.2 3.81c-.14.23-.08.51.13.68l2.32 1.8c-.04.34-.07.69-.07 1.08s.03.74.07 1.08L2.1 13.72c-.21.17-.27.45-.13.68l2.2 3.81c.13.23.42.31.65.23l2.73-1.1c.57.44 1.18.79 1.86 1.05l.41 2.91c.02.26.25.44.52.44h4c.27 0 .5-.18.52-.44l.41-2.91c.68-.26 1.29-.61 1.86-1.05l2.73 1.1c.24.09.52 0 .65-.23l2.2-3.81c.14-.23.08-.51-.13-.68l-2.32-1.8Z"/>
+      </svg>
+    </div>
+
+    <!-- Status badge -->
+    <div class="badge"><span class="badge-dot"></span>System Status · Maintenance Mode</div>
+
+    <!-- Heading -->
+    <h1>We're Upgrading<br/>Our Systems</h1>
+    <p class="sub">Our team is working hard to bring you something better. We'll be back online shortly with exciting new features and improvements.</p>
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Maintenance Progress</span>
+        <span id="pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="pbar"></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-val" id="countdown">04:32</div>
+        <div class="stat-lbl">ETA (hrs)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">99.9%</div>
+        <div class="stat-lbl">Uptime SLA</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">v3.0</div>
+        <div class="stat-lbl">New Release</div>
+      </div>
+    </div>
+
+    <!-- Notify -->
+    <div class="notify" id="notifyForm">
+      <input type="email" placeholder="Enter your email for updates…" id="emailInput"/>
+      <button onclick="notify()">Notify Me</button>
+    </div>
+    <div class="success-msg" id="successMsg">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      You're on the list! We'll notify you when we're back.
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-links">
+      <a href="#">Status Page</a>
+      <a href="#">Twitter / X</a>
+      <a href="#">Support</a>
+    </div>
+
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker-wrap">
+    <div class="ticker" id="ticker"></div>
+  </div>
+
+  <script>
+    // ── Particles ──
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 3 + 1;
+      p.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${Math.random()*100}%;
+        bottom:${Math.random()*20}%;
+        animation-duration:${6 + Math.random()*12}s;
+        animation-delay:${Math.random()*10}s;
+        background:${Math.random()>.5 ? '#00e5ff' : Math.random()>.5 ? '#ff6b35' : '#7c3aed'};
+      `;
+      container.appendChild(p);
+    }
+
+    // ── Progress counter ──
+    let pct = 0;
+    const bar = document.getElementById('pbar');
+    const pctEl = document.getElementById('pct');
+    setTimeout(() => {
+      const interval = setInterval(() => {
+        if (pct >= 73) { clearInterval(interval); return; }
+        pct++;
+        pctEl.textContent = pct + '%';
+      }, 46);
+    }, 1200);
+
+    // ── Countdown ──
+    let totalSecs = 4 * 3600 + 32 * 60;
+    const cd = document.getElementById('countdown');
+    setInterval(() => {
+      if (totalSecs <= 0) return;
+      totalSecs--;
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      cd.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    }, 1000);
+
+    // ── Ticker ──
+    const messages = [
+      'System maintenance in progress',
+      'Database optimization running',
+      'Security patches applied',
+      'Infrastructure upgrade 73% complete',
+      'Cache layers being rebuilt',
+      'CDN reconfiguration underway',
+      'Back soon — thank you for your patience',
+    ];
+    const tickEl = document.getElementById('ticker');
+    const full = [...messages, ...messages].map(m => `<span>· <em>—</em> ${m} </span>`).join('');
+    tickEl.innerHTML = full + full;
+
+    // ── Notify ──
+    function notify() {
+      const v = document.getElementById('emailInput').value.trim();
+      if (!v || !v.includes('@')) {
+        document.getElementById('emailInput').style.borderColor = 'rgba(255,107,53,.6)';
+        return;
+      }
+      document.getElementById('notifyForm').style.display = 'none';
+      const s = document.getElementById('successMsg');
+      s.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
