@@ -1,1 +1,3755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SpinWin - Earn Points, Win Rewards!</title>
+    <meta name="description" content="SpinWin - Spin the wheel, complete tasks, and win real rewards!">
+    <meta name="theme-color" content="#1e40af">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233b82f6'/><stop offset='100%25' style='stop-color:%231e40af'/></linearGradient></defs><rect fill='url(%23g)' rx='22' width='100' height='100'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>S</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                        'poppins': ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554'
+                        },
+                        accent: {
+                            orange: '#f97316',
+                            gold: '#fbbf24',
+                            emerald: '#10b981',
+                            violet: '#8b5cf6',
+                            rose: '#f43f5e',
+                            cyan: '#06b6d4'
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'shimmer': 'shimmer 2s linear infinite',
+                        'bounce-soft': 'bounceSoft 1s ease-in-out infinite',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'scale-in': 'scaleIn 0.3s ease-out',
+                        'confetti': 'confettiFall 3s linear forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* ===== BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* ===== THEME VARIABLES ===== */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.3);
+        }
+        
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --glass-bg: rgba(30, 41, 59, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* ===== THEME: NEON CYBER ===== */
+        .theme-neon {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent-gradient: linear-gradient(135deg, #00f0ff 0%, #8b5cf6 100%);
+            --glass-bg: rgba(10, 10, 15, 0.9);
+        }
+        
+        /* ===== THEME: SUNSET ===== */
+        .theme-sunset {
+            --bg-primary: #1a1423;
+            --bg-secondary: #251b30;
+            --bg-card: #2d2239;
+            --text-primary: #ffffff;
+            --text-secondary: #d4c5d9;
+            --accent-gradient: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%);
+        }
+        
+        /* ===== THEME: OCEAN ===== */
+        .theme-ocean {
+            --bg-primary: #0c1929;
+            --bg-secondary: #132238;
+            --bg-card: #1a2d47;
+            --text-primary: #ffffff;
+            --text-secondary: #94b8d4;
+            --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
+        }
+        
+        /* ===== THEME: FOREST ===== */
+        .theme-forest {
+            --bg-primary: #0d1f0d;
+            --bg-secondary: #142814;
+            --bg-card: #1a331a;
+            --text-primary: #ffffff;
+            --text-secondary: #a8d4a8;
+            --accent-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        /* ===== THEME: ROYAL GOLD ===== */
+        .theme-gold {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #242424;
+            --text-primary: #ffffff;
+            --text-secondary: #d4d4d4;
+            --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+        }
+        
+        /* ===== GLASSMORPHISM ===== */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+        
+        .glass-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
+        }
+        
+        /* ===== GRADIENT TEXT ===== */
+        .gradient-text {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* ===== BUTTON STYLES ===== */
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--text-muted);
+        }
+        
+        /* ===== INPUT STYLES ===== */
+        .input-field {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        .input-field:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .input-field::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* ===== WHEEL STYLES ===== */
+        .wheel-wrapper {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+        }
+        
+        @media (min-width: 400px) {
+            .wheel-wrapper {
+                width: 340px;
+                height: 340px;
+            }
+        }
+        
+        .wheel-outer-ring {
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #fbbf24, #f97316, #ef4444, #ec4899, #8b5cf6, #3b82f6, #06b6d4, #10b981, #fbbf24);
+            animation: spin-slow 10s linear infinite;
+            opacity: 0.6;
+        }
+        
+        .wheel-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            box-shadow: 
+                0 0 0 8px var(--bg-card),
+                0 0 0 12px var(--border-color),
+                0 10px 40px rgba(0, 0, 0, 0.3),
+                inset 0 0 60px rgba(255, 255, 255, 0.1);
+        }
+        
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+        
+        .wheel-pointer::before {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #f97316;
+        }
+        
+        .wheel-pointer::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .wheel-center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 
+                0 4px 15px rgba(249, 115, 22, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .wheel-center-btn:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+        }
+        
+        .wheel-center-btn:active {
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+        
+        .wheel-center-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* ===== AVIATOR GAME ===== */
+        .aviator-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .aviator-plane {
+            position: absolute;
+            font-size: 32px;
+            transition: all 0.1s linear;
+            z-index: 10;
+        }
+        
+        .aviator-multiplier {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: 900;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            z-index: 5;
+        }
+        
+        .aviator-crashed .aviator-multiplier {
+            color: #ff4444;
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+        
+        .aviator-graph {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* ===== ANIMATIONS ===== */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        @keyframes bounceSoft {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes confettiFall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        @keyframes spin-loader {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes winCelebrate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        /* ===== CONFETTI ===== */
+        .confetti-piece {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            animation: confettiFall 3s linear forwards;
+            z-index: 9999;
+        }
+        
+        /* ===== LOADER ===== */
+        .loader-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin-loader 1s linear infinite;
+        }
+        
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        /* ===== RANK BADGES ===== */
+        .rank-1 { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+        .rank-2 { background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32 0%, #a0522d 100%); }
+        
+        /* ===== NAVIGATION ===== */
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .nav-item.active {
+            color: #f97316;
+        }
+        
+        .nav-item.active .nav-icon {
+            transform: scale(1.1);
+        }
+        
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 20px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: scaleIn 0.3s ease-out;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 16px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+        }
+        
+        .toast {
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            font-size: 14px;
+            animation: slideUp 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .toast.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .toast.error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .toast.info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .toast.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        
+        /* ===== CARDS ===== */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow-color);
+        }
+        
+        /* ===== BADGES ===== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-gold {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+        
+        .badge-silver {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+        }
+        
+        .badge-bronze {
+            background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+            color: #9a3412;
+        }
+        
+        /* ===== TABS ===== */
+        .tab-container {
+            display: flex;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+        
+        /* ===== MINI GAME CARDS ===== */
+        .game-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px var(--shadow-color);
+            border-color: #3b82f6;
+        }
+        
+        /* ===== PROGRESS BAR ===== */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-gradient);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        /* ===== ACHIEVEMENT ===== */
+        .achievement-badge {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            background: var(--bg-secondary);
+            border: 3px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .achievement-badge.unlocked {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #fbbf24;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+        }
+        
+        .achievement-badge.locked {
+            opacity: 0.5;
+            filter: grayscale(1);
+        }
+        
+        /* ===== SCRATCH CARD ===== */
+        .scratch-card {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .scratch-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .scratch-prize {
+            position: absolute;
+            inset: 0;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: white;
+        }
+        
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 380px) {
+            .wheel-wrapper {
+                width: 260px;
+                height: 260px;
+            }
+            
+            .wheel-center-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 14px;
+            }
+        }
+        
+        /* ===== SAFE AREA ===== */
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 0);
+        }
+        
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 0);
+        }
+    </style>
+</head>
+<body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen">
+    <!-- App Container -->
+    <div id="app" class="min-h-screen flex items-center justify-center">
+        <div class="text-center animate-fade-in">
+            <div class="loader-spinner mx-auto mb-4"></div>
+            <p class="text-[var(--text-secondary)]">Loading SpinWin...</p>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Modal Container -->
+    <div id="modal" class="modal-overlay hidden" onclick="closeModalOutside(event)">
+        <div id="modal-content" class="modal-content" onclick="event.stopPropagation()"></div>
+    </div>
 
+    <script>
+        // =====================================================
+        // FIREBASE CONFIGURATION
+        // =====================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyA2c0riWkuN557GiZHfsBOkykFHUkV9Q2Q",
+            authDomain: "spin-to-earn-14394.firebaseapp.com",
+            databaseURL: "https://spin-to-earn-14394-default-rtdb.firebaseio.com",
+            projectId: "spin-to-earn-14394",
+            storageBucket: "spin-to-earn-14394.firebasestorage.app",
+            messagingSenderId: "266803939719",
+            appId: "1:266803939719:web:367ca86cf811aa803a6b22",
+            measurementId: "G-EHEHVG5HZX"
+        };
+
+        // Initialize Firebase
+        let db, auth, googleProvider, firebaseReady = false;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            auth = firebase.auth();
+            googleProvider = new firebase.auth.GoogleAuthProvider();
+            googleProvider.setCustomParameters({ prompt: 'select_account' });
+            firebaseReady = true;
+            
+            db.ref('.info/connected').on('value', snap => {
+                console.log(snap.val() ? '✅ Firebase Connected' : '⚠️ Firebase Disconnected');
+            });
+        } catch (e) {
+            console.error('Firebase Error:', e);
+        }
+
+        // =====================================================
+        // CONSTANTS
+        // =====================================================
+        const ADMIN_EMAIL = 'saadking3132@gmail.com';
+        const ADMIN_PASS = 'admin123';
+        const ADMIN_ID = 'admin_master_001';
+        const MIN_WITHDRAW = 4000;
+        const PTS_TO_RS = 0.1;
+        const MAX_DAILY_SPINS = 10;
+        const SPIN_COST = 10;
+
+        const PRIZES = [
+            { label: '10', value: 10, color: '#84cc16', chance: 30 },
+            { label: '25', value: 25, color: '#22c55e', chance: 25 },
+            { label: '50', value: 50, color: '#3b82f6', chance: 18 },
+            { label: '100', value: 100, color: '#8b5cf6', chance: 12 },
+            { label: '200', value: 200, color: '#ec4899', chance: 7 },
+            { label: '500', value: 500, color: '#f59e0b', chance: 5 },
+            { label: '1K', value: 1000, color: '#ef4444', chance: 2.5 },
+            { label: 'JP', value: 'jackpot', color: '#fbbf24', chance: 0.5 }
+        ];
+
+        const LEVELS = [
+            { level: 1, xp: 0, title: 'Beginner' },
+            { level: 2, xp: 500, title: 'Rookie' },
+            { level: 3, xp: 1500, title: 'Player' },
+            { level: 5, xp: 5000, title: 'Gamer' },
+            { level: 10, xp: 15000, title: 'Pro' },
+            { level: 20, xp: 50000, title: 'Expert' },
+            { level: 50, xp: 200000, title: 'Master' },
+            { level: 100, xp: 1000000, title: 'Legend' }
+        ];
+
+        const ACHIEVEMENTS = [
+            { id: 'first_spin', name: 'First Spin', desc: 'Spin the wheel for the first time', icon: '🎰', pts: 50 },
+            { id: 'spin_10', name: 'Spinner', desc: 'Complete 10 spins', icon: '🔄', pts: 100 },
+            { id: 'spin_100', name: 'Spin Master', desc: 'Complete 100 spins', icon: '💫', pts: 500 },
+            { id: 'win_500', name: 'Big Winner', desc: 'Win 500+ in one spin', icon: '💎', pts: 200 },
+            { id: 'jackpot', name: 'Jackpot!', desc: 'Hit the jackpot', icon: '🎯', pts: 5000 },
+            { id: 'refer_1', name: 'Influencer', desc: 'Refer 1 friend', icon: '👥', pts: 100 },
+            { id: 'refer_5', name: 'Networker', desc: 'Refer 5 friends', icon: '🌟', pts: 500 },
+            { id: 'withdraw', name: 'Cash Out', desc: 'Make first withdrawal', icon: '💰', pts: 200 },
+            { id: 'streak_7', name: 'Weekly Streak', desc: '7 day login streak', icon: '🔥', pts: 300 },
+            { id: 'streak_30', name: 'Monthly Streak', desc: '30 day login streak', icon: '⚡', pts: 2000 }
+        ];
+
+        // User Badge Levels
+        const USER_BADGES = [
+            { id: 'bronze', name: 'Bronze', icon: '🥉', minPts: 0, color: '#cd7f32', desc: 'Starting player' },
+            { id: 'silver', name: 'Silver', icon: '🥈', minPts: 1000, color: '#c0c0c0', desc: '1000+ points' },
+            { id: 'gold', name: 'Gold', icon: '🥇', minPts: 5000, color: '#ffd700', desc: '5000+ points' },
+            { id: 'platinum', name: 'Platinum', icon: '💎', minPts: 15000, color: '#e5e4e2', desc: '15000+ points' },
+            { id: 'diamond', name: 'Diamond', icon: '💠', minPts: 50000, color: '#b9f2ff', desc: '50000+ points' },
+            { id: 'master', name: 'Master', icon: '👑', minPts: 100000, color: '#ff6b6b', desc: '100K+ points' },
+            { id: 'legend', name: 'Legend', icon: '🏆', minPts: 500000, color: '#9b59b6', desc: '500K+ points' }
+        ];
+
+        // Global tasks list (admin can add more)
+        let globalTasks = [];
+
+        // =====================================================
+        // STATE
+        // =====================================================
+        let currentUser = null;
+        let userData = null;
+        let allUsers = {};
+        let view = 'home';
+        let isSpinning = false;
+        let theme = localStorage.getItem('spinwin_theme') || 'default';
+        let soundEnabled = localStorage.getItem('spinwin_sound') !== 'false';
+
+        // =====================================================
+        // BADGE HELPER
+        // =====================================================
+        function getUserBadge(pts) {
+            let badge = USER_BADGES[0];
+            for (const b of USER_BADGES) {
+                if ((pts || 0) >= b.minPts) badge = b;
+            }
+            return badge;
+        }
+
+        // =====================================================
+        // TASKS SYSTEM
+        // =====================================================
+        async function loadTasks() {
+            try {
+                const snap = await db.ref('tasks').once('value');
+                globalTasks = snap.val() || [];
+            } catch (e) {
+                console.error('Error loading tasks:', e);
+                globalTasks = [];
+            }
+        }
+
+        async function completeTask(taskId) {
+            if (!currentUser || !userData) return;
+            
+            const task = globalTasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const completedTasks = userData.tasksCompleted || {};
+            
+            // Check if already completed today
+            const today = new Date().toDateString();
+            if (completedTasks[taskId] === today) {
+                showToast('Task already completed today!', 'error');
+                return;
+            }
+            
+            // Mark as completed
+            completedTasks[taskId] = today;
+            
+            // Award points
+            await addPoints(task.points, `✅ Task: ${task.title}`);
+            
+            await updateUserData({
+                tasksCompleted: completedTasks
+            });
+            
+            showToast(`✅ Task completed! +${task.points} pts`, 'success');
+        }
+
+        async function createTask(title, description, points, type) {
+            if (!userData?.isAdmin) return;
+            
+            const newTask = {
+                id: 'task_' + Date.now(),
+                title,
+                description: description || '',
+                points: parseInt(points) || 10,
+                type: type || 'daily',
+                active: true,
+                createdAt: new Date().toISOString()
+            };
+            
+            globalTasks.push(newTask);
+            await db.ref('tasks').set(globalTasks);
+            
+            showToast('Task created!', 'success');
+            closeModal();
+            showAdminTasks();
+        }
+
+        async function deleteTask(taskId) {
+            if (!userData?.isAdmin) return;
+            
+            globalTasks = globalTasks.filter(t => t.id !== taskId);
+            await db.ref('tasks').set(globalTasks);
+            
+            showToast('Task deleted!', 'success');
+            closeModal();
+            showAdminTasks();
+        }
+
+        async function toggleUserVerification(uid) {
+            if (!userData?.isAdmin) return;
+            
+            const user = allUsers[uid];
+            if (!user) return;
+            
+            const newStatus = !user.verified;
+            await userRef(uid).update({ verified: newStatus });
+            
+            showToast(newStatus ? '✅ User verified!' : '❌ Verification removed', 'success');
+            showAdminUsers();
+        }
+
+        // =====================================================
+        // UTILITY FUNCTIONS
+        // =====================================================
+        const $ = id => document.getElementById(id);
+        const $$ = sel => document.querySelector(sel);
+        const $$$ = sel => document.querySelectorAll(sel);
+
+        const formatNumber = n => {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return (n || 0).toLocaleString();
+        };
+
+        const ptsToRs = pts => (pts * PTS_TO_RS).toFixed(2);
+
+        const formatTime = date => {
+            if (!date) return '';
+            const d = new Date(date);
+            const now = new Date();
+            const diff = now - d;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+            if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+            return d.toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+        };
+
+        // =====================================================
+        // TOAST SYSTEM
+        // =====================================================
+        function showToast(message, type = 'info') {
+            const container = $('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+            toast.innerHTML = `<span class="text-lg">${icons[type]}</span><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // =====================================================
+        // MODAL SYSTEM
+        // =====================================================
+        function showModal(content) {
+            $('modal-content').innerHTML = content;
+            $('modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            $('modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function closeModalOutside(e) {
+            if (e.target.id === 'modal') closeModal();
+        }
+
+        // =====================================================
+        // CONFETTI EFFECT
+        // =====================================================
+        function createConfetti(count = 100) {
+            const colors = ['#f97316', '#fbbf24', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ef4444'];
+            
+            for (let i = 0; i < count; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDelay = Math.random() * 2 + 's';
+                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                piece.style.width = Math.random() * 10 + 5 + 'px';
+                piece.style.height = piece.style.width;
+                document.body.appendChild(piece);
+                
+                setTimeout(() => piece.remove(), 5000);
+            }
+        }
+
+        // =====================================================
+        // THEME SYSTEM
+        // =====================================================
+        function setTheme(newTheme) {
+            theme = newTheme;
+            localStorage.setItem('spinwin_theme', theme);
+            
+            document.body.className = document.body.className
+                .replace(/theme-\w+/g, '')
+                .replace(/dark/g, '');
+            
+            if (theme === 'dark') {
+                document.body.classList.add('dark');
+            } else if (theme !== 'default') {
+                document.body.classList.add(`theme-${theme}`);
+            }
+            
+            render();
+        }
+
+        function applyTheme() {
+            if (theme === 'dark') {
+                document.body.classList.add('dark');
+            } else if (theme !== 'default') {
+                document.body.classList.add(`theme-${theme}`);
+            }
+        }
+
+        // =====================================================
+        // DATABASE FUNCTIONS
+        // =====================================================
+        function userRef(uid) {
+            return db.ref(`users/${uid}`);
+        }
+
+        function globalRef() {
+            return db.ref('global');
+        }
+
+        function updateUserData(updates) {
+            if (!currentUser) return;
+            return userRef(currentUser).update(updates);
+        }
+
+        // =====================================================
+        // REAL-TIME LISTENERS
+        // =====================================================
+        function listenToUser() {
+            if (!currentUser) return;
+            
+            userRef(currentUser).on('value', snap => {
+                userData = snap.val();
+                if (userData) {
+                    checkDailyReset();
+                    render();
+                }
+            });
+        }
+
+        function listenToAllUsers() {
+            db.ref('users').on('value', snap => {
+                allUsers = snap.val() || {};
+                render();
+            });
+        }
+
+        function checkDailyReset() {
+            if (!userData) return;
+            
+            const today = new Date().toDateString();
+            if (userData.lastReset !== today) {
+                updateUserData({
+                    spinsToday: 0,
+                    tasksCompleted: {},
+                    lastReset: today
+                });
+            }
+            
+            // Check login streak
+            const lastLogin = userData.lastLoginDate;
+            const yesterday = new Date(Date.now() - 86400000).toDateString();
+            
+            if (lastLogin !== today) {
+                let newStreak = 1;
+                if (lastLogin === yesterday) {
+                    newStreak = (userData.loginStreak || 0) + 1;
+                }
+                
+                updateUserData({
+                    loginStreak: newStreak,
+                    lastLoginDate: today
+                });
+                
+                // Streak bonus
+                if (newStreak >= 7) {
+                    const bonus = newStreak * 10;
+                    addPoints(bonus, `🔥 ${newStreak} day streak bonus!`);
+                }
+            }
+        }
+
+        // =====================================================
+        // AUTHENTICATION
+        // =====================================================
+        async function loginWithEmail(email, password) {
+            email = email.toLowerCase().trim();
+            
+            // Admin login
+            if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
+                const snap = await userRef(ADMIN_ID).once('value');
+                if (!snap.exists()) await createAdminAccount();
+                
+                await updateOnlineStatus(ADMIN_ID, true);
+                currentUser = ADMIN_ID;
+                localStorage.setItem('spinwin_uid', ADMIN_ID);
+                
+                listenToUser();
+                listenToAllUsers();
+                
+                showToast('Welcome Admin! 👑', 'success');
+                return true;
+            }
+            
+            // Regular user login
+            const usersSnap = await db.ref('users').orderByChild('email').equalTo(email).once('value');
+            
+            if (!usersSnap.exists()) {
+                showToast('Account not found. Please sign up.', 'error');
+                return false;
+            }
+            
+            let uid, data;
+            usersSnap.forEach(child => { uid = child.key; data = child.val(); });
+            
+            if (data.password && data.password !== password) {
+                showToast('Incorrect password', 'error');
+                return false;
+            }
+            
+            await updateOnlineStatus(uid, true);
+            currentUser = uid;
+            localStorage.setItem('spinwin_uid', uid);
+            
+            listenToUser();
+            listenToAllUsers();
+            
+            showToast(`Welcome back, ${data.name}!`, 'success');
+            return true;
+        }
+
+        async function signupWithEmail(name, email, password, refCode) {
+            email = email.toLowerCase().trim();
+            
+            // Check if exists
+            const exists = await db.ref('users').orderByChild('email').equalTo(email).once('value');
+            if (exists.exists()) {
+                showToast('Email already registered. Please login.', 'error');
+                return false;
+            }
+            
+            // Create user
+            const uid = 'user_' + Date.now();
+            const data = createUserData(email, name, refCode);
+            data.password = password;
+            data.emailVerified = false;
+            
+            // Handle referral
+            if (refCode) {
+                const refSnap = await db.ref('users').orderByChild('refCode').equalTo(refCode.toUpperCase()).once('value');
+                if (refSnap.exists()) {
+                    let refId, refData;
+                    refSnap.forEach(c => { refId = c.key; refData = c.val(); });
+                    
+                    if (refId) {
+                        // Referrer bonus
+                        await userRef(refId).update({
+                            referrals: [...(refData.referrals || []), uid],
+                            pts: (refData.pts || 0) + 100,
+                            totalEarned: (refData.totalEarned || 0) + 100
+                        });
+                        
+                        // New user bonus
+                        data.pts += 50;
+                        data.totalEarned += 50;
+                        data.referredBy = refCode;
+                        data.transactions.push({
+                            id: Date.now(),
+                            type: 'earn',
+                            amount: 50,
+                            desc: '🎁 Referral bonus',
+                            time: new Date().toISOString()
+                        });
+                        
+                        showToast('Referral bonus! +50 pts', 'success');
+                    }
+                }
+            }
+            
+            await userRef(uid).set(data);
+            
+            // Update global stats
+            const globalSnap = await globalRef().once('value');
+            const global = globalSnap.val() || { stats: {} };
+            await globalRef().child('stats/totalUsers').set((global.stats?.totalUsers || 0) + 1);
+            
+            currentUser = uid;
+            localStorage.setItem('spinwin_uid', uid);
+            
+            // Send email verification
+            if (auth && auth.currentUser) {
+                try {
+                    await auth.currentUser.sendEmailVerification();
+                    showToast('Verification email sent!', 'info');
+                } catch (e) {}
+            }
+            
+            listenToUser();
+            listenToAllUsers();
+            
+            showToast('Account created! 🎉', 'success');
+            return true;
+        }
+
+        async function googleSignIn() {
+            if (!auth) {
+                showToast('Google Sign-In not available', 'error');
+                return;
+            }
+            
+            try {
+                showToast('Opening Google Sign-In...', 'info');
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                
+                const usersSnap = await db.ref('users').orderByChild('email').equalTo(user.email.toLowerCase()).once('value');
+                
+                if (usersSnap.exists()) {
+                    let uid;
+                    usersSnap.forEach(c => uid = c.key);
+                    await updateOnlineStatus(uid, true);
+                    currentUser = uid;
+                } else {
+                    const uid = 'user_' + Date.now();
+                    const data = createUserData(user.email, user.displayName || user.email.split('@')[0]);
+                    data.photoURL = user.photoURL;
+                    data.authProvider = 'google';
+                    data.emailVerified = user.emailVerified;
+                    
+                    await userRef(uid).set(data);
+                    currentUser = uid;
+                }
+                
+                localStorage.setItem('spinwin_uid', currentUser);
+                listenToUser();
+                listenToAllUsers();
+                
+                showToast('Signed in successfully!', 'success');
+            } catch (e) {
+                console.error('Google Sign-In Error:', e);
+                
+                if (e.code === 'auth/popup-blocked') {
+                    showToast('Popup blocked! Allow popups and try again.', 'error');
+                } else if (e.code === 'auth/unauthorized-domain') {
+                    showToast('Domain not authorized in Firebase', 'error');
+                } else {
+                    showToast(e.message || 'Sign-in failed', 'error');
+                }
+            }
+        }
+
+        async function logout() {
+            if (currentUser) {
+                await updateOnlineStatus(currentUser, false);
+                userRef(currentUser).off();
+            }
+            
+            db.ref('users').off();
+            
+            if (auth) {
+                try { await auth.signOut(); } catch (e) {}
+            }
+            
+            localStorage.removeItem('spinwin_uid');
+            currentUser = null;
+            userData = null;
+            view = 'home';
+            
+            render();
+            showToast('Logged out', 'success');
+        }
+
+        async function updateOnlineStatus(uid, online) {
+            return userRef(uid).update({
+                online,
+                lastSeen: new Date().toISOString()
+            });
+        }
+
+        function createUserData(email, name, refCode = null) {
+            const now = Date.now();
+            return {
+                email: email.toLowerCase(),
+                name,
+                phone: '',
+                pts: 100,
+                totalEarned: 100,
+                xp: 0,
+                level: 1,
+                spins: 0,
+                spinsToday: 0,
+                lastReset: new Date().toDateString(),
+                loginStreak: 0,
+                lastLoginDate: new Date().toDateString(),
+                refCode: 'SPIN' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                referredBy: refCode,
+                referrals: [],
+                transactions: [{
+                    id: now,
+                    type: 'earn',
+                    amount: 100,
+                    desc: '🎁 Welcome bonus!',
+                    time: new Date().toISOString()
+                }],
+                withdrawals: [],
+                achievements: [],
+                tasksCompleted: {},
+                stats: { biggestWin: 0, totalSpins: 0, jackpots: 0 },
+                created: new Date().toISOString(),
+                lastSeen: new Date().toISOString(),
+                online: true,
+                theme: 'default'
+            };
+        }
+
+        async function createAdminAccount() {
+            const adminData = {
+                email: ADMIN_EMAIL,
+                name: 'Admin',
+                pts: 999999,
+                totalEarned: 999999,
+                xp: 9999999,
+                level: 100,
+                spins: 9999,
+                spinsToday: 0,
+                lastReset: new Date().toDateString(),
+                loginStreak: 365,
+                refCode: 'ADMIN',
+                referrals: [],
+                transactions: [],
+                withdrawals: [],
+                achievements: ACHIEVEMENTS.map(a => a.id),
+                tasksCompleted: {},
+                stats: { biggestWin: 10000, totalSpins: 9999, jackpots: 50 },
+                isAdmin: true,
+                created: new Date().toISOString(),
+                lastSeen: new Date().toISOString(),
+                online: true
+            };
+            
+            await userRef(ADMIN_ID).set(adminData);
+        }
+
+        // =====================================================
+        // POINTS & TRANSACTIONS
+        // =====================================================
+        async function addPoints(amount, description) {
+            if (!currentUser || !userData) return;
+            
+            const transactions = [...(userData.transactions || []), {
+                id: Date.now(),
+                type: 'earn',
+                amount,
+                desc: description,
+                time: new Date().toISOString()
+            }];
+            
+            await updateUserData({
+                pts: (userData.pts || 0) + amount,
+                totalEarned: (userData.totalEarned || 0) + amount,
+                xp: (userData.xp || 0) + Math.floor(amount / 10),
+                transactions: transactions.slice(-100)
+            });
+        }
+
+        // =====================================================
+        // SPIN WHEEL
+        // =====================================================
+        let wheelRotation = 0;
+        let wheelAnimationId = null;
+        
+        async function spinWheel() {
+            if (isSpinning) return;
+            if ((userData.spinsToday || 0) >= MAX_DAILY_SPINS) {
+                showToast('Daily spin limit reached!', 'error');
+                return;
+            }
+            if ((userData.pts || 0) < SPIN_COST) {
+                showToast(`Need ${SPIN_COST} points to spin!`, 'error');
+                return;
+            }
+            
+            isSpinning = true;
+            
+            // Calculate prize
+            const rand = Math.random() * 100;
+            let cumulative = 0;
+            let prize = PRIZES[0];
+            
+            for (const p of PRIZES) {
+                cumulative += p.chance;
+                if (rand <= cumulative) {
+                    prize = p;
+                    break;
+                }
+            }
+            
+            // Calculate target rotation
+            const segmentAngle = 360 / PRIZES.length;
+            const prizeIndex = PRIZES.indexOf(prize);
+            const targetAngle = 360 - (prizeIndex * segmentAngle + segmentAngle / 2);
+            const totalRotation = wheelRotation + (360 * 8) + targetAngle;
+            
+            // Deduct cost
+            const newPts = userData.pts - SPIN_COST;
+            const newSpins = userData.spins + 1;
+            const newSpinsToday = userData.spinsToday + 1;
+            
+            await updateUserData({
+                pts: newPts,
+                spins: newSpins,
+                spinsToday: newSpinsToday,
+                'stats/totalSpins': (userData.stats?.totalSpins || 0) + 1
+            });
+            
+            // Animate wheel
+            const startRotation = wheelRotation;
+            const startTime = performance.now();
+            const duration = 5000; // 5 seconds
+            
+            function animateWheel(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function - cubic-bezier(0.17, 0.67, 0.12, 0.99)
+                const eased = 1 - Math.pow(1 - progress, 4);
+                
+                wheelRotation = startRotation + (totalRotation - startRotation) * eased;
+                drawWheel();
+                
+                if (progress < 1) {
+                    wheelAnimationId = requestAnimationFrame(animateWheel);
+                } else {
+                    isSpinning = false;
+                    showSpinResult(prize);
+                }
+            }
+            
+            wheelAnimationId = requestAnimationFrame(animateWheel);
+            showToast('🎰 Spinning...', 'info');
+        }
+        
+        async function showSpinResult(prize) {
+            let prizeValue = prize.value;
+            let isJackpot = false;
+            
+            if (prize.value === 'jackpot') {
+                prizeValue = 10000;
+                isJackpot = true;
+                createConfetti(200);
+            }
+            
+            // Show result modal
+            showModal(`
+                <div class="p-8 text-center">
+                    <div class="text-7xl mb-4 animate-bounce-soft">${isJackpot ? '🎉' : '🎰'}</div>
+                    <h2 class="text-3xl font-bold mb-2 ${isJackpot ? 'gradient-text' : ''}">${isJackpot ? 'JACKPOT!' : 'You Won!'}</h2>
+                    <p class="text-5xl font-black text-amber-500 mb-2">+${formatNumber(prizeValue)}</p>
+                    <p class="text-lg text-[var(--text-secondary)] mb-6">points</p>
+                    <p class="text-[var(--text-muted)] mb-6">= Rs. ${ptsToRs(prizeValue)}</p>
+                    <button onclick="closeModal()" class="btn-primary w-full text-lg py-4">Awesome! 🎊</button>
+                </div>
+            `);
+            
+            // Update stats
+            const updates = {
+                pts: (userData.pts || 0) + prizeValue,
+                totalEarned: (userData.totalEarned || 0) + prizeValue,
+                xp: (userData.xp || 0) + Math.floor(prizeValue / 5)
+            };
+            
+            if (prizeValue > (userData.stats?.biggestWin || 0)) {
+                updates['stats/biggestWin'] = prizeValue;
+            }
+            
+            if (isJackpot) {
+                updates['stats/jackpots'] = (userData.stats?.jackpots || 0) + 1;
+            }
+            
+            // Add transaction
+            const txns = [...(userData.transactions || []), {
+                id: Date.now(),
+                type: 'earn',
+                amount: prizeValue,
+                desc: isJackpot ? '🎯 JACKPOT!' : `🎰 Won ${prize.label} pts`,
+                time: new Date().toISOString()
+            }];
+            updates.transactions = txns.slice(-100);
+            
+            await updateUserData(updates);
+            
+            // Check achievements
+            checkAchievements((userData.spins || 0) + 1, prizeValue, isJackpot);
+        }
+
+        function checkAchievements(totalSpins, winAmount, isJackpot) {
+            const newAchievements = [];
+            
+            if (totalSpins >= 1 && !userData.achievements?.includes('first_spin')) {
+                newAchievements.push('first_spin');
+            }
+            if (totalSpins >= 10 && !userData.achievements?.includes('spin_10')) {
+                newAchievements.push('spin_10');
+            }
+            if (totalSpins >= 100 && !userData.achievements?.includes('spin_100')) {
+                newAchievements.push('spin_100');
+            }
+            if (winAmount >= 500 && !userData.achievements?.includes('win_500')) {
+                newAchievements.push('win_500');
+            }
+            if (isJackpot && !userData.achievements?.includes('jackpot')) {
+                newAchievements.push('jackpot');
+            }
+            
+            if (newAchievements.length > 0) {
+                const achievements = [...(userData.achievements || []), ...newAchievements];
+                updateUserData({ achievements });
+                
+                let bonus = 0;
+                newAchievements.forEach(id => {
+                    const ach = ACHIEVEMENTS.find(a => a.id === id);
+                    if (ach) bonus += ach.pts;
+                });
+                
+                if (bonus > 0) {
+                    setTimeout(() => {
+                        showToast(`🏆 Achievement unlocked! +${bonus} pts`, 'success');
+                    }, 1000);
+                }
+            }
+        }
+
+        // =====================================================
+        // WITHDRAWAL SYSTEM
+        // =====================================================
+        function requestWithdrawal() {
+            if ((userData.pts || 0) < MIN_WITHDRAW) {
+                showToast(`Minimum withdrawal: ${formatNumber(MIN_WITHDRAW)} pts`, 'error');
+                return;
+            }
+            
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4">💳 Request Withdrawal</h2>
+                    
+                    <div class="glass-card p-4 mb-4">
+                        <p class="text-sm text-[var(--text-secondary)]">Available</p>
+                        <p class="text-2xl font-bold gradient-text">${formatNumber(userData.pts)} pts</p>
+                        <p class="text-sm text-[var(--text-muted)]">= Rs. ${ptsToRs(userData.pts)}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Amount (min ${formatNumber(MIN_WITHDRAW)} pts)</label>
+                        <input type="number" id="wd-amount" min="${MIN_WITHDRAW}" max="${userData.pts}" value="${MIN_WITHDRAW}" class="input-field">
+                        <p class="text-sm text-[var(--text-muted)] mt-1">You'll receive: Rs. <span id="wd-rs">${ptsToRs(MIN_WITHDRAW)}</span></p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Payment Method</label>
+                        <select id="wd-method" class="input-field">
+                            <option value="easypaisa">📱 EasyPaisa</option>
+                            <option value="jazzcash">💳 JazzCash</option>
+                            <option value="bank">🏦 Bank Transfer</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-2">Account Number</label>
+                        <input type="text" id="wd-account" placeholder="03XX XXXXXXX" class="input-field">
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="btn-secondary flex-1">Cancel</button>
+                        <button onclick="submitWithdrawal()" class="btn-primary flex-1">Submit</button>
+                    </div>
+                </div>
+            `);
+            
+            $('wd-amount').addEventListener('input', e => {
+                $('wd-rs').textContent = ptsToRs(parseInt(e.target.value) || 0);
+            });
+        }
+
+        async function submitWithdrawal() {
+            const amount = parseInt($('wd-amount').value);
+            const method = $('wd-method').value;
+            const account = $('wd-account').value.trim();
+            
+            if (amount < MIN_WITHDRAW) {
+                showToast(`Minimum: ${formatNumber(MIN_WITHDRAW)} pts`, 'error');
+                return;
+            }
+            if (amount > userData.pts) {
+                showToast('Insufficient points', 'error');
+                return;
+            }
+            if (!account) {
+                showToast('Enter account number', 'error');
+                return;
+            }
+            
+            const withdrawal = {
+                id: 'wd_' + Date.now(),
+                amount,
+                method,
+                account,
+                status: 'pending',
+                requested: new Date().toISOString()
+            };
+            
+            const withdrawals = [...(userData.withdrawals || []), withdrawal];
+            const transactions = [...(userData.transactions || []), {
+                id: Date.now(),
+                type: 'withdraw',
+                amount: -amount,
+                desc: `💳 Withdrawal request`,
+                time: new Date().toISOString()
+            }];
+            
+            await updateUserData({
+                pts: userData.pts - amount,
+                withdrawals,
+                transactions: transactions.slice(-100)
+            });
+            
+            closeModal();
+            showToast('Withdrawal request submitted!', 'success');
+            
+            // Check achievement
+            if (!userData.achievements?.includes('withdraw')) {
+                const achievements = [...(userData.achievements || []), 'withdraw'];
+                updateUserData({ achievements });
+            }
+        }
+
+        // =====================================================
+        // MINI GAMES
+        // =====================================================
+        function openMiniGames() {
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4">🎮 Mini Games</h2>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="game-card" onclick="playScratchCard()">
+                            <div class="text-4xl mb-2">🎫</div>
+                            <p class="font-bold">Scratch Card</p>
+                            <p class="text-sm text-[var(--text-muted)]">Win up to 500 pts</p>
+                        </div>
+                        
+                        <div class="game-card" onclick="playHighLow()">
+                            <div class="text-4xl mb-2">🎴</div>
+                            <p class="font-bold">High or Low</p>
+                            <p class="text-sm text-[var(--text-muted)]">Double or nothing</p>
+                        </div>
+                        
+                        <div class="game-card" onclick="playMysteryBox()">
+                            <div class="text-4xl mb-2">🎁</div>
+                            <p class="font-bold">Mystery Box</p>
+                            <p class="text-sm text-[var(--text-muted)]">Random prizes</p>
+                        </div>
+                        
+                        <div class="game-card" onclick="playLuckyNumber()">
+                            <div class="text-4xl mb-2">🍀</div>
+                            <p class="font-bold">Lucky Number</p>
+                            <p class="text-sm text-[var(--text-muted)]">Pick & win</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-4">Close</button>
+                </div>
+            `);
+        }
+
+        async function playScratchCard() {
+            if ((userData.pts || 0) < 20) {
+                showToast('Need 20 pts to play', 'error');
+                return;
+            }
+            
+            await updateUserData({ pts: userData.pts - 20 });
+            
+            const prizes = [10, 20, 50, 100, 200, 500];
+            const weights = [30, 25, 20, 15, 8, 2];
+            
+            let rand = Math.random() * 100;
+            let prize = prizes[0];
+            let cum = 0;
+            
+            for (let i = 0; i < prizes.length; i++) {
+                cum += weights[i];
+                if (rand <= cum) {
+                    prize = prizes[i];
+                    break;
+                }
+            }
+            
+            await addPoints(prize, `🎫 Scratch Card: ${prize} pts`);
+            
+            showModal(`
+                <div class="p-8 text-center">
+                    <div class="text-6xl mb-4">🎫</div>
+                    <h2 class="text-2xl font-bold mb-4">You Won!</h2>
+                    <p class="text-5xl font-black text-amber-500 mb-4">+${prize}</p>
+                    <p class="text-[var(--text-muted)] mb-6">points</p>
+                    <button onclick="playScratchCard()" class="btn-secondary mb-3 w-full">Play Again (20 pts)</button>
+                    <button onclick="closeModal()" class="btn-primary w-full">Collect</button>
+                </div>
+            `);
+        }
+
+        async function playHighLow() {
+            if ((userData.pts || 0) < 50) {
+                showToast('Need 50 pts to play', 'error');
+                return;
+            }
+            
+            const currentNum = Math.floor(Math.random() * 10) + 1;
+            
+            showModal(`
+                <div class="p-6 text-center">
+                    <h2 class="text-xl font-bold mb-4">🎴 High or Low?</h2>
+                    <p class="text-[var(--text-muted)] mb-4">Will the next number be higher or lower?</p>
+                    
+                    <div class="glass-card p-6 mb-6">
+                        <p class="text-sm text-[var(--text-secondary)]">Current Number</p>
+                        <p class="text-6xl font-black gradient-text">${currentNum}</p>
+                    </div>
+                    
+                    <p class="text-sm text-[var(--text-muted)] mb-4">Bet: 50 pts → Win: 100 pts</p>
+                    
+                    <div class="flex gap-4">
+                        <button onclick="guessHighLow('low', ${currentNum})" class="btn-primary flex-1 py-4">
+                            ⬇️ Lower
+                        </button>
+                        <button onclick="guessHighLow('high', ${currentNum})" class="btn-primary flex-1 py-4">
+                            ⬆️ Higher
+                        </button>
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-4">Cancel</button>
+                </div>
+            `);
+        }
+
+        async function guessHighLow(guess, currentNum) {
+            await updateUserData({ pts: userData.pts - 50 });
+            
+            const nextNum = Math.floor(Math.random() * 10) + 1;
+            const won = (guess === 'high' && nextNum > currentNum) || (guess === 'low' && nextNum < currentNum);
+            
+            if (won) {
+                await addPoints(100, '🎴 High-Low Win!');
+                createConfetti(30);
+            }
+            
+            showModal(`
+                <div class="p-8 text-center">
+                    <div class="text-6xl mb-4">${won ? '🎉' : '😢'}</div>
+                    <h2 class="text-2xl font-bold mb-2">${won ? 'You Won!' : 'You Lost'}</h2>
+                    
+                    <div class="flex justify-center gap-8 my-6">
+                        <div>
+                            <p class="text-sm text-[var(--text-muted)]">Was</p>
+                            <p class="text-3xl font-bold">${currentNum}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-[var(--text-muted)]">Now</p>
+                            <p class="text-3xl font-bold">${nextNum}</p>
+                        </div>
+                    </div>
+                    
+                    <p class="text-4xl font-black ${won ? 'text-green-500' : 'text-red-500'} mb-6">${won ? '+100' : '-50'} pts</p>
+                    
+                    <button onclick="playHighLow()" class="btn-secondary mb-3 w-full">Play Again</button>
+                    <button onclick="closeModal()" class="btn-primary w-full">Done</button>
+                </div>
+            `);
+        }
+
+        async function playMysteryBox() {
+            if ((userData.pts || 0) < 30) {
+                showToast('Need 30 pts to play', 'error');
+                return;
+            }
+            
+            await updateUserData({ pts: userData.pts - 30 });
+            
+            const prizes = [
+                { pts: 10, chance: 30, rarity: 'common' },
+                { pts: 50, chance: 25, rarity: 'common' },
+                { pts: 100, chance: 20, rarity: 'uncommon' },
+                { pts: 250, chance: 15, rarity: 'rare' },
+                { pts: 500, chance: 8, rarity: 'epic' },
+                { pts: 1000, chance: 2, rarity: 'legendary' }
+            ];
+            
+            let rand = Math.random() * 100;
+            let prize = prizes[0];
+            let cum = 0;
+            
+            for (const p of prizes) {
+                cum += p.chance;
+                if (rand <= cum) {
+                    prize = p;
+                    break;
+                }
+            }
+            
+            await addPoints(prize.pts, `🎁 Mystery Box: ${prize.pts} pts`);
+            
+            const colors = {
+                common: 'from-gray-400 to-gray-500',
+                uncommon: 'from-green-400 to-green-600',
+                rare: 'from-blue-400 to-blue-600',
+                epic: 'from-purple-400 to-purple-600',
+                legendary: 'from-amber-400 to-amber-600'
+            };
+            
+            showModal(`
+                <div class="p-8 text-center">
+                    <div class="w-24 h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${colors[prize.rarity]} flex items-center justify-center">
+                        <span class="text-5xl">🎁</span>
+                    </div>
+                    <p class="text-sm uppercase font-bold text-[var(--text-muted)] mb-2">${prize.rarity}</p>
+                    <h2 class="text-2xl font-bold mb-4">You Found!</h2>
+                    <p class="text-5xl font-black text-amber-500 mb-6">+${prize.pts}</p>
+                    <button onclick="playMysteryBox()" class="btn-secondary mb-3 w-full">Open Another (30 pts)</button>
+                    <button onclick="closeModal()" class="btn-primary w-full">Collect</button>
+                </div>
+            `);
+        }
+
+        async function playLuckyNumber() {
+            if ((userData.pts || 0) < 25) {
+                showToast('Need 25 pts to play', 'error');
+                return;
+            }
+            
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-2 text-center">🍀 Lucky Number</h2>
+                    <p class="text-center text-[var(--text-muted)] mb-4">Pick a number (1-10). Match = 5x!</p>
+                    
+                    <div class="grid grid-cols-5 gap-2 mb-6">
+                        ${[1,2,3,4,5,6,7,8,9,10].map(n => `
+                            <button onclick="pickLuckyNumber(${n})" class="btn-secondary py-4 text-xl font-bold">${n}</button>
+                        `).join('')}
+                    </div>
+                    
+                    <p class="text-center text-sm text-[var(--text-muted)]">Cost: 25 pts | Win: 125 pts</p>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-4">Cancel</button>
+                </div>
+            `);
+        }
+
+        async function pickLuckyNumber(pick) {
+            await updateUserData({ pts: userData.pts - 25 });
+            
+            const winning = Math.floor(Math.random() * 10) + 1;
+            const won = pick === winning;
+            
+            if (won) {
+                await addPoints(125, `🍀 Lucky Number Win!`);
+                createConfetti(50);
+            }
+            
+            showModal(`
+                <div class="p-8 text-center">
+                    <div class="text-6xl mb-4">${won ? '🎉' : '🍀'}</div>
+                    <h2 class="text-2xl font-bold mb-4">${won ? 'You Won!' : 'Try Again!'}</h2>
+                    
+                    <div class="flex justify-center gap-8 my-6">
+                        <div>
+                            <p class="text-sm text-[var(--text-muted)]">Your Pick</p>
+                            <p class="text-4xl font-bold">${pick}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-[var(--text-muted)]">Result</p>
+                            <p class="text-4xl font-bold ${won ? 'text-green-500' : 'text-red-500'}">${winning}</p>
+                        </div>
+                    </div>
+                    
+                    <p class="text-4xl font-black ${won ? 'text-green-500' : 'text-red-500'} mb-6">${won ? '+125' : '-25'} pts</p>
+                    
+                    <button onclick="playLuckyNumber()" class="btn-secondary mb-3 w-full">Play Again</button>
+                    <button onclick="closeModal()" class="btn-primary w-full">Done</button>
+                </div>
+            `);
+        }
+
+        // =====================================================
+        // AVIATOR GAME
+        // =====================================================
+        let aviatorGameState = {
+            isPlaying: false,
+            multiplier: 1.00,
+            betAmount: 0,
+            crashed: false,
+            animationId: null,
+            crashPoint: 1.00
+        };
+        
+        function playAviator() {
+            const maxBet = userData.pts || 0;
+            
+            showModal(`
+                <div class="p-4">
+                    <div class="text-center mb-4">
+                        <h2 class="text-2xl font-bold text-white">✈️ Aviator</h2>
+                        <p class="text-white/70 text-sm">Bet any amount & cash out before it crashes!</p>
+                    </div>
+                    
+                    <!-- Aviator Display -->
+                    <div id="aviator-display" class="aviator-container mb-4">
+                        <canvas id="aviatorCanvas" class="aviator-graph"></canvas>
+                        <div id="aviator-plane" class="aviator-plane" style="left: 10%; bottom: 20%;">✈️</div>
+                        <div id="aviator-multiplier" class="aviator-multiplier">1.00x</div>
+                    </div>
+                    
+                    <!-- Bet Input -->
+                    <div id="aviator-bet-section" class="glass-card p-4 mb-4" style="background: var(--bg-secondary);">
+                        <p class="font-medium mb-2" style="color: var(--text-primary);">Your Bet Amount</p>
+                        <div class="flex gap-2 mb-3">
+                            <input type="number" id="aviator-bet" min="10" max="${maxBet}" value="50" class="input-field flex-1" placeholder="Enter bet amount">
+                        </div>
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="setAviatorBet(10)" class="flex-1 py-2 rounded-lg text-sm font-medium" style="background: var(--bg-card);">10</button>
+                            <button onclick="setAviatorBet(50)" class="flex-1 py-2 rounded-lg text-sm font-medium" style="background: var(--bg-card);">50</button>
+                            <button onclick="setAviatorBet(100)" class="flex-1 py-2 rounded-lg text-sm font-medium" style="background: var(--bg-card);">100</button>
+                            <button onclick="setAviatorBet(${maxBet})" class="flex-1 py-2 rounded-lg text-sm font-medium" style="background: var(--bg-card);">MAX</button>
+                        </div>
+                        <p class="text-xs text-[var(--text-muted)]">Balance: ${formatNumber(maxBet)} pts</p>
+                    </div>
+                    
+                    <!-- Controls -->
+                    <div class="flex gap-3">
+                        <button id="aviator-start-btn" onclick="startAviator()" class="btn-primary flex-1 py-4 text-lg font-bold">
+                            🚀 START
+                        </button>
+                        <button id="aviator-cashout-btn" onclick="cashoutAviator()" class="flex-1 py-4 text-lg font-bold bg-green-500 text-white rounded-xl opacity-50" disabled>
+                            💰 CASH OUT
+                        </button>
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-3">Close</button>
+                    
+                    <!-- History -->
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-white/70 mb-2">Recent Crashes:</p>
+                        <div class="flex gap-2 flex-wrap" id="aviator-history">
+                            ${generateAviatorHistory()}
+                        </div>
+                    </div>
+                </div>
+            `);
+            
+            // Draw initial state
+            setTimeout(() => drawAviatorGraph(1), 50);
+        }
+        
+        function generateAviatorHistory() {
+            const history = [];
+            for (let i = 0; i < 10; i++) {
+                const crash = (Math.random() * 5 + 1).toFixed(2);
+                const isGood = parseFloat(crash) >= 2;
+                history.push(`<span class="px-2 py-1 rounded text-xs font-bold ${isGood ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${crash}x</span>`);
+            }
+            return history.join('');
+        }
+        
+        function setAviatorBet(amount) {
+            const input = document.getElementById('aviator-bet');
+            if (input) {
+                input.value = Math.min(amount, userData.pts || 0);
+            }
+        }
+        
+        async function startAviator() {
+            const betInput = document.getElementById('aviator-bet');
+            const betAmount = parseInt(betInput?.value) || 50;
+            
+            if (betAmount < 10) {
+                showToast('Minimum bet is 10 points', 'error');
+                return;
+            }
+            
+            if (betAmount > (userData.pts || 0)) {
+                showToast('Not enough points!', 'error');
+                return;
+            }
+            
+            // Deduct bet
+            await updateUserData({ pts: userData.pts - betAmount });
+            
+            // Set up game state
+            aviatorGameState = {
+                isPlaying: true,
+                multiplier: 1.00,
+                betAmount: betAmount,
+                crashed: false,
+                animationId: null,
+                crashPoint: generateCrashPoint()
+            };
+            
+            // Update UI
+            document.getElementById('aviator-start-btn').disabled = true;
+            document.getElementById('aviator-start-btn').classList.add('opacity-50');
+            document.getElementById('aviator-cashout-btn').disabled = false;
+            document.getElementById('aviator-cashout-btn').classList.remove('opacity-50');
+            document.getElementById('aviator-bet-section').style.opacity = '0.5';
+            document.getElementById('aviator-bet-section').style.pointerEvents = 'none';
+            
+            // Start animation
+            animateAviator();
+        }
+        
+        function generateCrashPoint() {
+            // House edge ~5%
+            // Generates crash points with realistic distribution
+            const rand = Math.random();
+            if (rand < 0.01) return 1.00; // Instant crash 1%
+            if (rand < 0.05) return (1 + Math.random() * 0.2).toFixed(2); // Low crash 4%
+            
+            // Normal distribution
+            const crash = 1 / (1 - rand);
+            return Math.min(crash, 10).toFixed(2);
+        }
+        
+        function animateAviator() {
+            if (!aviatorGameState.isPlaying || aviatorGameState.crashed) return;
+            
+            // Increase multiplier
+            aviatorGameState.multiplier += 0.01 + (Math.random() * 0.02);
+            const currentMultiplier = parseFloat(aviatorGameState.multiplier.toFixed(2));
+            
+            // Check for crash
+            if (currentMultiplier >= parseFloat(aviatorGameState.crashPoint)) {
+                crashAviator();
+                return;
+            }
+            
+            // Update display
+            const multiplierEl = document.getElementById('aviator-multiplier');
+            const planeEl = document.getElementById('aviator-plane');
+            
+            if (multiplierEl) {
+                multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
+            }
+            
+            if (planeEl) {
+                const progress = Math.min((currentMultiplier - 1) / 9 * 80, 80);
+                const height = Math.min(20 + progress * 0.8, 85);
+                planeEl.style.left = (10 + progress) + '%';
+                planeEl.style.bottom = height + '%';
+            }
+            
+            // Draw graph
+            drawAviatorGraph(currentMultiplier);
+            
+            // Update cashout button
+            const cashoutBtn = document.getElementById('aviator-cashout-btn');
+            if (cashoutBtn) {
+                const winAmount = Math.floor(aviatorGameState.betAmount * currentMultiplier);
+                cashoutBtn.textContent = `💰 CASH OUT ${winAmount}`;
+            }
+            
+            // Continue animation
+            aviatorGameState.animationId = requestAnimationFrame(animateAviator);
+        }
+        
+        function drawAviatorGraph(multiplier) {
+            const canvas = document.getElementById('aviatorCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth * 2;
+            canvas.height = canvas.offsetHeight * 2;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw curve
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+            
+            const progress = Math.min((multiplier - 1) / 9, 1);
+            const curveHeight = height - (progress * height * 0.8);
+            
+            // Bezier curve for smooth path
+            ctx.quadraticCurveTo(
+                width * progress * 0.5, height * 0.8,
+                width * progress, curveHeight
+            );
+            
+            ctx.strokeStyle = aviatorGameState.crashed ? '#ff4444' : '#00ff88';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Glow effect
+            ctx.shadowColor = aviatorGameState.crashed ? '#ff4444' : '#00ff88';
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+        }
+        
+        async function cashoutAviator() {
+            if (!aviatorGameState.isPlaying || aviatorGameState.crashed) return;
+            
+            // Stop animation
+            if (aviatorGameState.animationId) {
+                cancelAnimationFrame(aviatorGameState.animationId);
+            }
+            
+            const winAmount = Math.floor(aviatorGameState.betAmount * aviatorGameState.multiplier);
+            
+            // Award points
+            await addPoints(winAmount, `✈️ Aviator: ${aviatorGameState.multiplier.toFixed(2)}x`);
+            
+            // Reset game state
+            aviatorGameState.isPlaying = false;
+            
+            createConfetti(50);
+            showToast(`✈️ Cashed out at ${aviatorGameState.multiplier.toFixed(2)}x! +${winAmount} pts`, 'success');
+            
+            // Show result
+            const display = document.getElementById('aviator-display');
+            if (display) {
+                display.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <div class="text-6xl mb-4">🎉</div>
+                        <p class="text-4xl font-black text-green-400">${aviatorGameState.multiplier.toFixed(2)}x</p>
+                        <p class="text-2xl text-white mt-2">+${formatNumber(winAmount)} pts</p>
+                    </div>
+                `;
+            }
+            
+            // Reset buttons
+            document.getElementById('aviator-start-btn').disabled = false;
+            document.getElementById('aviator-start-btn').classList.remove('opacity-50');
+            document.getElementById('aviator-cashout-btn').disabled = true;
+            document.getElementById('aviator-cashout-btn').classList.add('opacity-50');
+            document.getElementById('aviator-bet-section').style.opacity = '1';
+            document.getElementById('aviator-bet-section').style.pointerEvents = 'auto';
+        }
+        
+        function crashAviator() {
+            aviatorGameState.crashed = true;
+            aviatorGameState.isPlaying = false;
+            
+            if (aviatorGameState.animationId) {
+                cancelAnimationFrame(aviatorGameState.animationId);
+            }
+            
+            // Update display
+            const multiplierEl = document.getElementById('aviator-multiplier');
+            const display = document.getElementById('aviator-display');
+            const planeEl = document.getElementById('aviator-plane');
+            
+            if (multiplierEl) {
+                multiplierEl.textContent = 'CRASHED!';
+                multiplierEl.style.color = '#ff4444';
+            }
+            
+            if (planeEl) {
+                planeEl.textContent = '💥';
+            }
+            
+            if (display) {
+                display.classList.add('aviator-crashed');
+            }
+            
+            drawAviatorGraph(aviatorGameState.multiplier);
+            
+            showToast(`💥 Crashed at ${aviatorGameState.multiplier.toFixed(2)}x!`, 'error');
+            
+            // Reset buttons after delay
+            setTimeout(() => {
+                document.getElementById('aviator-start-btn').disabled = false;
+                document.getElementById('aviator-start-btn').classList.remove('opacity-50');
+                document.getElementById('aviator-cashout-btn').disabled = true;
+                document.getElementById('aviator-cashout-btn').classList.add('opacity-50');
+                document.getElementById('aviator-bet-section').style.opacity = '1';
+                document.getElementById('aviator-bet-section').style.pointerEvents = 'auto';
+            }, 1500);
+        }
+
+        // =====================================================
+        // DAILY BONUSES
+        // =====================================================
+        function claimDailyBonus() {
+            const lastClaim = userData.lastDailyBonus;
+            const today = new Date().toDateString();
+            
+            if (lastClaim === today) {
+                showToast('Already claimed today!', 'error');
+                return;
+            }
+            
+            const streak = userData.loginStreak || 1;
+            const bonus = Math.min(10 + (streak * 5), 100);
+            
+            addPoints(bonus, `🎁 Daily bonus (Day ${streak})`);
+            
+            updateUserData({
+                lastDailyBonus: today,
+                loginStreak: streak
+            });
+            
+            createConfetti(30);
+            showToast(`🎁 Daily bonus: +${bonus} pts!`, 'success');
+        }
+
+        function claimHourlyBonus() {
+            const lastClaim = userData.lastHourlyBonus || 0;
+            const now = Date.now();
+            const hourAgo = now - 3600000;
+            
+            if (lastClaim > hourAgo) {
+                const minsLeft = Math.ceil((lastClaim - hourAgo) / 60000);
+                showToast(`Wait ${minsLeft} more minutes`, 'error');
+                return;
+            }
+            
+            const bonus = 5;
+            addPoints(bonus, '⏰ Hourly bonus');
+            updateUserData({ lastHourlyBonus: now });
+            showToast(`⏰ +${bonus} pts!`, 'success');
+        }
+
+        // =====================================================
+        // RENDER FUNCTIONS
+        // =====================================================
+        function render() {
+            applyTheme();
+            
+            const app = $('app');
+            
+            if (!currentUser || !userData) {
+                app.innerHTML = renderAuthScreen();
+            } else {
+                app.innerHTML = renderMainScreen();
+            }
+        }
+
+        function renderAuthScreen() {
+            return `
+            <div class="min-h-screen flex flex-col items-center justify-center p-4" style="background: var(--accent-gradient);">
+                <div class="w-full max-w-md">
+                    <!-- Logo -->
+                    <div class="text-center mb-8 animate-fade-in">
+                        <div class="w-24 h-24 bg-white rounded-3xl shadow-2xl flex items-center justify-center mx-auto mb-4">
+                            <span class="text-5xl">🎰</span>
+                        </div>
+                        <h1 class="text-4xl font-black text-white mb-2">SpinWin</h1>
+                        <p class="text-white/80">Spin • Earn • Withdraw</p>
+                    </div>
+                    
+                    <!-- Auth Card -->
+                    <div class="glass-card p-6 animate-slide-up" style="background: var(--bg-card);">
+                        <!-- Google Button -->
+                        <button onclick="googleSignIn()" class="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-4 rounded-xl transition flex items-center justify-center gap-3 mb-4 shadow-lg">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            Continue with Google
+                        </button>
+                        
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="flex-1 h-px bg-[var(--border-color)]"></div>
+                            <span class="text-[var(--text-muted)] text-sm">or</span>
+                            <div class="flex-1 h-px bg-[var(--border-color)]"></div>
+                        </div>
+                        
+                        <!-- Tabs -->
+                        <div class="tab-container mb-4">
+                            <button onclick="showAuthTab('login')" id="tab-login" class="tab-btn active">Login</button>
+                            <button onclick="showAuthTab('signup')" id="tab-signup" class="tab-btn">Sign Up</button>
+                        </div>
+                        
+                        <!-- Login Form -->
+                        <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <input type="email" id="login-email" required class="input-field" placeholder="Email address">
+                            </div>
+                            <div>
+                                <input type="password" id="login-pass" required class="input-field" placeholder="Password">
+                            </div>
+                            <button type="submit" class="btn-primary w-full py-4 text-lg">Login</button>
+                        </form>
+                        
+                        <!-- Signup Form -->
+                        <form id="form-signup" onsubmit="handleSignup(event)" class="space-y-4 hidden">
+                            <div>
+                                <input type="text" id="signup-name" required class="input-field" placeholder="Full Name">
+                            </div>
+                            <div>
+                                <input type="email" id="signup-email" required class="input-field" placeholder="Email address">
+                            </div>
+                            <div>
+                                <input type="password" id="signup-pass" required minlength="6" class="input-field" placeholder="Password (min 6 chars)">
+                            </div>
+                            <div>
+                                <input type="text" id="signup-ref" class="input-field" placeholder="Referral Code (optional)">
+                            </div>
+                            <button type="submit" class="btn-primary w-full py-4 text-lg">Create Account</button>
+                        </form>
+                        
+                        <p class="text-center text-sm text-[var(--text-muted)] mt-4">
+                            By continuing, you agree to our Terms & Privacy Policy
+                        </p>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function showAuthTab(tab) {
+            const loginForm = $('form-login');
+            const signupForm = $('form-signup');
+            const loginTab = $('tab-login');
+            const signupTab = $('tab-signup');
+            
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                loginTab.classList.add('active');
+                signupTab.classList.remove('active');
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                signupTab.classList.add('active');
+                loginTab.classList.remove('active');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = $('login-email').value;
+            const pass = $('login-pass').value;
+            await loginWithEmail(email, pass);
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            const name = $('signup-name').value;
+            const email = $('signup-email').value;
+            const pass = $('signup-pass').value;
+            const ref = $('signup-ref').value;
+            await signupWithEmail(name, email, pass, ref);
+        }
+
+        function renderMainScreen() {
+            const onlineCount = Object.values(allUsers).filter(u => u.online).length;
+            const level = LEVELS.find(l => (userData.xp || 0) >= l.xp) || LEVELS[LEVELS.length - 1];
+            
+            return `
+            <div class="min-h-screen flex flex-col" style="background: var(--bg-primary);">
+                <!-- Header -->
+                <header class="sticky top-0 z-40 glass border-b" style="border-color: var(--border-color);">
+                    <div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🎰</span>
+                            <div>
+                                <h1 class="font-bold text-lg" style="color: var(--text-primary);">SpinWin</h1>
+                                <p class="text-xs" style="color: var(--text-secondary);">Level ${level.level} • ${userData.name}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                ${onlineCount} online
+                            </div>
+                            
+                            <div class="px-4 py-1.5 rounded-full font-bold text-white" style="background: var(--accent-gradient);">
+                                💰 ${formatNumber(userData.pts)}
+                            </div>
+                            
+                            <button onclick="showSettings()" class="p-2 rounded-full hover:bg-[var(--bg-secondary)] transition">
+                                <svg class="w-6 h-6" style="color: var(--text-secondary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Main Content -->
+                <main class="flex-1 overflow-y-auto pb-24">
+                    <div class="max-w-lg mx-auto p-4 animate-fade-in">
+                        ${renderCurrentView()}
+                    </div>
+                </main>
+                
+                <!-- Bottom Navigation -->
+                <nav class="fixed bottom-0 left-0 right-0 z-40 glass border-t safe-bottom" style="border-color: var(--border-color);">
+                    <div class="max-w-lg mx-auto flex justify-around py-2">
+                        <button onclick="setView('home')" class="nav-item ${view === 'home' ? 'active' : ''}" style="color: ${view === 'home' ? '' : 'var(--text-secondary)'};">
+                            <span class="nav-icon text-2xl">🏠</span>
+                            <span class="text-xs mt-1">Home</span>
+                        </button>
+                        
+                        <button onclick="setView('spin')" class="nav-item ${view === 'spin' ? 'active' : ''}" style="color: ${view === 'spin' ? '' : 'var(--text-secondary)'};">
+                            <span class="nav-icon text-2xl">🎰</span>
+                            <span class="text-xs mt-1">Spin</span>
+                        </button>
+                        
+                        <button onclick="setView('tasks')" class="nav-item ${view === 'tasks' ? 'active' : ''}" style="color: ${view === 'tasks' ? '' : 'var(--text-secondary)'};">
+                            <span class="nav-icon text-2xl">📋</span>
+                            <span class="text-xs mt-1">Tasks</span>
+                        </button>
+                        
+                        <button onclick="setView('leaderboard')" class="nav-item ${view === 'leaderboard' ? 'active' : ''}" style="color: ${view === 'leaderboard' ? '' : 'var(--text-secondary)'};">
+                            <span class="nav-icon text-2xl">🏆</span>
+                            <span class="text-xs mt-1">Ranks</span>
+                        </button>
+                        
+                        <button onclick="setView('profile')" class="nav-item relative ${view === 'profile' ? 'active' : ''}" style="color: ${view === 'profile' ? '' : 'var(--text-secondary)'};">
+                            <span class="nav-icon text-2xl">👤</span>
+                            <span class="text-xs mt-1">Profile</span>
+                            ${userData.isAdmin ? '<span class="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-xs text-white">👑</span>' : ''}
+                        </button>
+                    </div>
+                </nav>
+            </div>`;
+        }
+
+        function setView(v) {
+            view = v;
+            render();
+        }
+
+        function renderCurrentView() {
+            switch(view) {
+                case 'spin': return renderSpinView();
+                case 'games': return renderGamesView();
+                case 'tasks': return renderTasksView();
+                case 'leaderboard': return renderLeaderboardView();
+                case 'profile': return renderProfileView();
+                case 'wallet': return renderWalletView();
+                case 'achievements': return renderAchievementsView();
+                case 'admin': return renderAdminView();
+                case 'settings': return renderSettingsView();
+                default: return renderHomeView();
+            }
+        }
+
+        function renderHomeView() {
+            const spinsLeft = MAX_DAILY_SPINS - (userData.spinsToday || 0);
+            const streak = userData.loginStreak || 0;
+            const leaderboard = getLeaderboard();
+            const rank = leaderboard.findIndex(u => u.id === currentUser) + 1;
+            
+            return `
+            <!-- Balance Card -->
+            <div class="glass-card p-6 mb-4" style="background: var(--accent-gradient);">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-white/70 text-sm">Your Balance</p>
+                        <p class="text-4xl font-black text-white">${formatNumber(userData.pts)}</p>
+                        <p class="text-white/60 text-sm">≈ Rs. ${ptsToRs(userData.pts)}</p>
+                    </div>
+                    <div class="text-right">
+                        ${userData.isAdmin ? '<span class="badge badge-gold">👑 Admin</span>' : rank > 0 ? `<span class="badge badge-gold">#${rank} Rank</span>` : ''}
+                    </div>
+                </div>
+                
+                <div class="progress-bar bg-white/20">
+                    <div class="progress-fill bg-white" style="width: ${Math.min(100, ((userData.pts || 0) % 1000) / 10)}%"></div>
+                </div>
+                <p class="text-white/60 text-xs mt-2">${(userData.pts || 0) % 1000} / 1000 to next level</p>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="stat-card">
+                    <p class="text-2xl">🎰</p>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">${userData.spins || 0}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">Spins</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-2xl">💰</p>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">${formatNumber(userData.totalEarned || 0)}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">Earned</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-2xl">🔥</p>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">${streak}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">Day Streak</p>
+                </div>
+            </div>
+            
+            <!-- Daily Bonus -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-2xl">🎁</div>
+                        <div>
+                            <p class="font-bold" style="color: var(--text-primary);">Daily Bonus</p>
+                            <p class="text-sm" style="color: var(--text-secondary);">Day ${streak} streak • +${Math.min(10 + streak * 5, 100)} pts</p>
+                        </div>
+                    </div>
+                    <button onclick="claimDailyBonus()" class="btn-primary py-2 px-4">Claim</button>
+                </div>
+            </div>
+            
+            <!-- Spins Left -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background: var(--bg-secondary);">🎰</div>
+                        <div>
+                            <p class="font-bold" style="color: var(--text-primary);">Spins Today</p>
+                            <p class="text-sm" style="color: var(--text-secondary);">Resets at midnight</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-amber-500">${spinsLeft}</p>
+                        <p class="text-xs" style="color: var(--text-muted);">/ ${MAX_DAILY_SPINS}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="setView('spin')" class="glass-card p-4 text-left hover:scale-[1.02] transition">
+                    <span class="text-3xl">🎡</span>
+                    <p class="font-bold mt-2" style="color: var(--text-primary);">Spin Now</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Win big prizes!</p>
+                </button>
+                <button onclick="setView('games')" class="glass-card p-4 text-left hover:scale-[1.02] transition">
+                    <span class="text-3xl">🎮</span>
+                    <p class="font-bold mt-2" style="color: var(--text-primary);">Mini Games</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Play & earn more</p>
+                </button>
+            </div>
+            
+            <!-- Mini Leaderboard -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="font-bold" style="color: var(--text-primary);">🏆 Top Players</p>
+                    <button onclick="setView('leaderboard')" class="text-sm text-blue-500 hover:underline">View All</button>
+                </div>
+                
+                <div class="space-y-2">
+                    ${leaderboard.slice(0, 3).map((u, i) => `
+                        <div class="flex items-center gap-3 p-2 rounded-lg ${u.id === currentUser ? 'bg-blue-500/10' : ''}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm rank-${i + 1}">${i + 1}</div>
+                            <div class="flex-1">
+                                <p class="font-medium" style="color: var(--text-primary);">${u.name} ${u.id === currentUser ? '(You)' : ''}</p>
+                            </div>
+                            <p class="font-bold" style="color: var(--text-primary);">${formatNumber(u.pts)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="glass-card p-4">
+                <p class="font-bold mb-3" style="color: var(--text-primary);">📜 Recent Activity</p>
+                
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                    ${(userData.transactions || []).slice(-10).reverse().map(t => `
+                        <div class="flex items-center justify-between py-2 border-b" style="border-color: var(--border-color);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-primary);">${t.desc}</p>
+                                <p class="text-xs" style="color: var(--text-muted);">${formatTime(t.time)}</p>
+                            </div>
+                            <p class="font-bold ${t.type === 'earn' ? 'text-green-500' : 'text-red-500'}">${t.type === 'earn' ? '+' : '-'}${formatNumber(Math.abs(t.amount))}</p>
+                        </div>
+                    `).join('') || '<p class="text-center text-[var(--text-muted)] py-4">No activity yet</p>'}
+                </div>
+            </div>`;
+        }
+
+        function renderSpinView() {
+            const spinsLeft = MAX_DAILY_SPINS - (userData.spinsToday || 0);
+            
+            setTimeout(() => drawWheel(), 50);
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">🎰 Spin the Wheel</h2>
+                <p style="color: var(--text-secondary);">Cost: ${SPIN_COST} pts per spin</p>
+            </div>
+            
+            <div class="glass-card p-3 mb-4 text-center">
+                <p style="color: var(--text-primary);">Spins Left: <span class="font-bold text-amber-500">${spinsLeft}</span> / ${MAX_DAILY_SPINS}</p>
+            </div>
+            
+            <!-- Wheel -->
+            <div class="flex justify-center mb-6">
+                <div class="wheel-wrapper">
+                    <div class="wheel-outer-ring"></div>
+                    <div class="wheel-container">
+                        <div class="wheel-pointer"></div>
+                        <canvas id="wheelCanvas" width="340" height="340"></canvas>
+                        <button id="spinBtn" class="wheel-center-btn" onclick="spinWheel()" ${isSpinning || spinsLeft <= 0 ? 'disabled' : ''}>
+                            ${isSpinning ? '...' : 'SPIN'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Jackpot Banner -->
+            <div class="glass-card p-4 mb-4 text-center" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
+                <p class="text-white/80 text-sm">🎯 JACKPOT</p>
+                <p class="text-3xl font-black text-white">10,000 pts</p>
+                <p class="text-white/60 text-xs">Hit the jackpot to win!</p>
+            </div>
+            
+            <!-- Prize Table -->
+            <div class="glass-card p-4">
+                <p class="font-bold mb-3" style="color: var(--text-primary);">📊 Prize Chances</p>
+                <div class="grid grid-cols-4 gap-2">
+                    ${PRIZES.map(p => `
+                        <div class="text-center p-2 rounded-lg" style="background: ${p.color}20;">
+                            <p class="font-bold" style="color: ${p.color};">${p.label}</p>
+                            <p class="text-xs" style="color: var(--text-muted);">${p.chance}%</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+        }
+        
+        // Canvas wheel drawing
+        let wheelRotation = 0;
+        let wheelAnimationId = null;
+        
+        function drawWheel() {
+            const canvas = document.getElementById('wheelCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 5;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(wheelRotation * Math.PI / 180);
+            
+            const segmentAngle = (2 * Math.PI) / PRIZES.length;
+            
+            PRIZES.forEach((prize, i) => {
+                const startAngle = i * segmentAngle - Math.PI / 2;
+                const endAngle = startAngle + segmentAngle;
+                
+                // Draw segment
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = prize.color;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff33';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw label
+                const textAngle = startAngle + segmentAngle / 2;
+                const textRadius = radius * 0.65;
+                const textX = Math.cos(textAngle) * textRadius;
+                const textY = Math.sin(textAngle) * textRadius;
+                
+                ctx.save();
+                ctx.translate(textX, textY);
+                ctx.rotate(textAngle + Math.PI / 2);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(prize.label, 0, 0);
+                ctx.restore();
+            });
+            
+            ctx.restore();
+        }
+
+        function renderGamesView() {
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">🎮 Mini Games</h2>
+                <p style="color: var(--text-secondary);">Play games to earn more points!</p>
+            </div>
+            
+            <!-- Featured: Aviator Game -->
+            <div class="game-card mb-4 p-5" onclick="playAviator()" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 2px solid #e94560;">
+                <div class="flex items-center gap-4">
+                    <div class="text-5xl">✈️</div>
+                    <div class="flex-1">
+                        <p class="font-bold text-xl text-white">Aviator</p>
+                        <p class="text-sm text-white/70">Bet any amount & cash out before it crashes!</p>
+                        <p class="text-xs text-green-400 mt-1">🎯 Multiplier up to 10x!</p>
+                    </div>
+                    <div class="text-3xl text-white/50">→</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="game-card" onclick="playScratchCard()">
+                    <div class="text-5xl mb-3">🎫</div>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">Scratch Card</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Cost: 20 pts</p>
+                    <p class="text-sm text-green-500 font-medium">Win up to 500</p>
+                </div>
+                
+                <div class="game-card" onclick="playHighLow()">
+                    <div class="text-5xl mb-3">🎴</div>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">High or Low</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Cost: 50 pts</p>
+                    <p class="text-sm text-green-500 font-medium">Win 100 pts</p>
+                </div>
+                
+                <div class="game-card" onclick="playMysteryBox()">
+                    <div class="text-5xl mb-3">🎁</div>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">Mystery Box</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Cost: 30 pts</p>
+                    <p class="text-sm text-green-500 font-medium">Win up to 1000</p>
+                </div>
+                
+                <div class="game-card" onclick="playLuckyNumber()">
+                    <div class="text-5xl mb-3">🍀</div>
+                    <p class="font-bold text-lg" style="color: var(--text-primary);">Lucky Number</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Cost: 25 pts</p>
+                    <p class="text-sm text-green-500 font-medium">Win 125 pts</p>
+                </div>
+            </div>
+            
+            <!-- Hourly Bonus -->
+            <div class="glass-card p-4 mt-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-2xl">⏰</div>
+                        <div>
+                            <p class="font-bold" style="color: var(--text-primary);">Hourly Bonus</p>
+                            <p class="text-sm" style="color: var(--text-secondary);">Free 5 pts every hour</p>
+                        </div>
+                    </div>
+                    <button onclick="claimHourlyBonus()" class="btn-primary py-2 px-4">Claim</button>
+                </div>
+            </div>`;
+        }
+
+        function renderTasksView() {
+            const userBadge = getUserBadge(userData.pts);
+            const completedTasks = userData.tasksCompleted || {};
+            const today = new Date().toDateString();
+            
+            const activeTasks = globalTasks.filter(t => t.active);
+            const completedToday = activeTasks.filter(t => completedTasks[t.id] === today);
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">📋 Tasks</h2>
+                <p style="color: var(--text-secondary);">Complete tasks to earn bonus points!</p>
+            </div>
+            
+            <!-- User Badge Card -->
+            <div class="glass-card p-4 mb-4" style="background: linear-gradient(135deg, ${userBadge.color}22, ${userBadge.color}44);">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center text-3xl" style="background: ${userBadge.color};">
+                        ${userBadge.icon}
+                    </div>
+                    <div>
+                        <p class="font-bold text-lg" style="color: var(--text-primary);">${userBadge.name} Badge</p>
+                        <p class="text-sm" style="color: var(--text-muted);">${userBadge.desc}</p>
+                        <p class="text-xs mt-1" style="color: var(--text-secondary);">Points: ${formatNumber(userData.pts)}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tasks Progress -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="font-medium" style="color: var(--text-primary);">Today's Progress</p>
+                    <p class="text-sm font-bold text-amber-500">${completedToday.length}/${activeTasks.length}</p>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${activeTasks.length > 0 ? (completedToday.length / activeTasks.length * 100) : 0}%"></div>
+                </div>
+            </div>
+            
+            <!-- Tasks List -->
+            <div class="space-y-3">
+                ${activeTasks.length === 0 ? `
+                    <div class="glass-card p-8 text-center">
+                        <div class="text-5xl mb-3">📝</div>
+                        <p class="font-medium" style="color: var(--text-primary);">No tasks available</p>
+                        <p class="text-sm" style="color: var(--text-muted);">Check back later for new tasks!</p>
+                    </div>
+                ` : activeTasks.map(task => {
+                    const isCompleted = completedTasks[task.id] === today;
+                    return `
+                    <div class="glass-card p-4 ${isCompleted ? 'opacity-60' : ''}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background: ${isCompleted ? '#10b981' : 'var(--bg-secondary)'};">
+                                    ${isCompleted ? '✅' : '📋'}
+                                </div>
+                                <div>
+                                    <p class="font-bold" style="color: var(--text-primary);">${task.title}</p>
+                                    <p class="text-sm" style="color: var(--text-muted);">${task.description || 'Complete this task'}</p>
+                                    <span class="text-xs px-2 py-0.5 rounded-full mt-1 inline-block" style="background: var(--bg-secondary); color: var(--text-secondary);">
+                                        ${task.type || 'daily'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-green-500">+${task.points}</p>
+                                <button onclick="completeTask('${task.id}')" class="mt-2 px-4 py-2 rounded-lg text-sm font-medium ${isCompleted ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'btn-primary'}" ${isCompleted ? 'disabled' : ''}>
+                                    ${isCompleted ? 'Done' : 'Claim'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>`;
+        }
+
+        function renderLeaderboardView() {
+            const leaderboard = getLeaderboard();
+            const rank = leaderboard.findIndex(u => u.id === currentUser) + 1;
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">🏆 Leaderboard</h2>
+                <p style="color: var(--text-secondary);">Top players by points</p>
+                ${rank > 0 ? `<p class="text-sm mt-2" style="color: var(--text-primary);">Your Rank: <span class="font-bold text-amber-500">#${rank}</span></p>` : ''}
+            </div>
+            
+            <!-- Top 3 Podium -->
+            ${leaderboard.length >= 3 ? `
+            <div class="flex items-end justify-center gap-4 mb-6">
+                <!-- 2nd Place -->
+                <div class="text-center">
+                    <div class="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-2xl mx-auto mb-1 shadow-lg">🥈</div>
+                    <p class="font-semibold text-sm truncate w-20" style="color: var(--text-primary);">${leaderboard[1]?.name}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">${formatNumber(leaderboard[1]?.pts)} pts</p>
+                    <div class="w-16 h-16 bg-gray-300 rounded-t-lg mt-2"></div>
+                </div>
+                
+                <!-- 1st Place -->
+                <div class="text-center">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-3xl mx-auto mb-1 shadow-lg animate-pulse-glow">👑</div>
+                    <p class="font-bold truncate w-24" style="color: var(--text-primary);">${leaderboard[0]?.name}</p>
+                    <p class="text-sm" style="color: var(--text-muted);">${formatNumber(leaderboard[0]?.pts)} pts</p>
+                    <div class="w-20 h-24 bg-gradient-to-t from-yellow-500 to-yellow-400 rounded-t-lg mt-2"></div>
+                </div>
+                
+                <!-- 3rd Place -->
+                <div class="text-center">
+                    <div class="w-16 h-16 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center text-2xl mx-auto mb-1 shadow-lg">🥉</div>
+                    <p class="font-semibold text-sm truncate w-20" style="color: var(--text-primary);">${leaderboard[2]?.name}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">${formatNumber(leaderboard[2]?.pts)} pts</p>
+                    <div class="w-16 h-12 bg-amber-600 rounded-t-lg mt-2"></div>
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- Full Leaderboard -->
+            <div class="glass-card">
+                <div class="divide-y" style="border-color: var(--border-color);">
+                    ${leaderboard.map((u, i) => `
+                        <div class="flex items-center gap-3 p-3 ${u.id === currentUser ? 'bg-blue-500/10' : ''}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${i < 3 ? `rank-${i + 1}` : ''}" style="${i >= 3 ? 'background: var(--bg-secondary); color: var(--text-primary);' : ''}">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</div>
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" style="background: var(--bg-secondary); color: var(--text-primary);">${u.name.charAt(0).toUpperCase()}</div>
+                            <div class="flex-1">
+                                <p class="font-medium" style="color: var(--text-primary);">
+                                    ${u.name} 
+                                    ${u.verified ? '<span class="text-blue-500 text-sm">✓</span>' : ''}
+                                    ${u.id === currentUser ? '<span class="text-xs text-blue-500">(You)</span>' : ''}
+                                </p>
+                                <p class="text-xs" style="color: var(--text-muted);">Level ${u.level} • ${u.spins} spins</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold" style="color: var(--text-primary);">${formatNumber(u.pts)}</p>
+                                <p class="text-xs" style="color: var(--text-muted);">Rs. ${ptsToRs(u.pts)}</p>
+                            </div>
+                        </div>
+                    `).join('') || '<p class="text-center py-8" style="color: var(--text-muted);">No players yet</p>'}
+                </div>
+            </div>`;
+        }
+
+        function renderProfileView() {
+            const level = LEVELS.find(l => (userData.xp || 0) >= l.xp) || LEVELS[LEVELS.length - 1];
+            const achievements = userData.achievements || [];
+            const userBadge = getUserBadge(userData.pts);
+            
+            return `
+            <!-- Profile Header -->
+            <div class="glass-card p-6 mb-4 text-center" style="background: var(--accent-gradient);">
+                <div class="w-24 h-24 rounded-full bg-white mx-auto mb-3 flex items-center justify-center text-4xl shadow-lg relative">
+                    ${userData.photoURL ? `<img src="${userData.photoURL}" class="w-full h-full rounded-full object-cover">` : '👤'}
+                    ${userData.verified ? '<span class="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-lg border-2 border-white">✓</span>' : ''}
+                </div>
+                <h2 class="text-2xl font-bold text-white">
+                    ${userData.name}
+                    ${userData.verified ? '<span class="text-blue-300 text-lg">✓</span>' : ''}
+                </h2>
+                <p class="text-white/70">${userData.email}</p>
+                <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
+                    <span class="px-3 py-1 rounded-full bg-white/20 text-white text-sm font-medium">
+                        ${level.title} • Level ${level.level}
+                    </span>
+                    <span class="px-3 py-1 rounded-full text-white text-sm font-medium" style="background: ${userBadge.color};">
+                        ${userBadge.icon} ${userBadge.name}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="stat-card">
+                    <p class="text-sm" style="color: var(--text-muted);">Total Earned</p>
+                    <p class="text-xl font-bold" style="color: var(--text-primary);">${formatNumber(userData.totalEarned || 0)}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-sm" style="color: var(--text-muted);">Total Spins</p>
+                    <p class="text-xl font-bold" style="color: var(--text-primary);">${userData.spins || 0}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-sm" style="color: var(--text-muted);">Biggest Win</p>
+                    <p class="text-xl font-bold" style="color: var(--text-primary);">${formatNumber(userData.stats?.biggestWin || 0)}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-sm" style="color: var(--text-muted);">Jackpots</p>
+                    <p class="text-xl font-bold text-amber-500">${userData.stats?.jackpots || 0}</p>
+                </div>
+            </div>
+            
+            <!-- Referral Code -->
+            <div class="glass-card p-4 mb-4">
+                <p class="font-bold mb-2" style="color: var(--text-primary);">👥 Referral Code</p>
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 p-3 rounded-lg font-mono text-lg font-bold text-center" style="background: var(--bg-secondary); color: var(--text-primary);">${userData.refCode}</div>
+                    <button onclick="copyReferralCode()" class="btn-primary py-3 px-4">Copy</button>
+                </div>
+                <p class="text-sm mt-2" style="color: var(--text-muted);">Share and earn 100 pts per referral!</p>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="space-y-2">
+                <button onclick="setView('wallet')" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">💳</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Withdraw</span>
+                    </div>
+                    <span style="color: var(--text-muted);">→</span>
+                </button>
+                
+                <button onclick="setView('achievements')" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🏆</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Achievements</span>
+                    </div>
+                    <span class="text-sm" style="color: var(--text-muted);">${achievements.length}/${ACHIEVEMENTS.length}</span>
+                </button>
+                
+                ${userData.isAdmin ? `
+                <button onclick="setView('admin')" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👑</span>
+                        <span class="font-medium text-white">Admin Panel</span>
+                    </div>
+                    <span class="text-white/70">→</span>
+                </button>
+                ` : ''}
+                
+                <button onclick="logout()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🚪</span>
+                        <span class="font-medium text-red-500">Logout</span>
+                    </div>
+                </button>
+            </div>`;
+        }
+
+        function renderWalletView() {
+            const canWithdraw = (userData.pts || 0) >= MIN_WITHDRAW;
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">💳 Withdraw</h2>
+                <p style="color: var(--text-secondary);">Convert points to real money</p>
+            </div>
+            
+            <!-- Balance Card -->
+            <div class="glass-card p-6 mb-4 text-center" style="background: var(--accent-gradient);">
+                <p class="text-white/70 text-sm">Available Balance</p>
+                <p class="text-5xl font-black text-white my-2">${formatNumber(userData.pts)}</p>
+                <p class="text-white/60">≈ Rs. ${ptsToRs(userData.pts)}</p>
+            </div>
+            
+            <!-- Conversion Info -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span style="color: var(--text-secondary);">Conversion Rate</span>
+                    <span class="font-bold" style="color: var(--text-primary);">100 pts = Rs. 10</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span style="color: var(--text-secondary);">Minimum Withdrawal</span>
+                    <span class="font-bold text-amber-500">${formatNumber(MIN_WITHDRAW)} pts</span>
+                </div>
+            </div>
+            
+            ${canWithdraw ? `
+                <button onclick="requestWithdrawal()" class="btn-primary w-full py-4 text-lg mb-4">
+                    Request Withdrawal
+                </button>
+            ` : `
+                <div class="glass-card p-4 mb-4 text-center border-2 border-dashed" style="border-color: var(--border-color);">
+                    <p class="text-[var(--text-muted)]">You need ${formatNumber(MIN_WITHDRAW - userData.pts)} more points to withdraw</p>
+                </div>
+            `}
+            
+            <!-- Withdrawal History -->
+            <div class="glass-card p-4">
+                <p class="font-bold mb-3" style="color: var(--text-primary);">📜 Withdrawal History</p>
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                    ${(userData.withdrawals || []).slice(-10).reverse().map(w => `
+                        <div class="flex items-center justify-between py-2 border-b" style="border-color: var(--border-color);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-primary);">${formatNumber(w.amount)} pts</p>
+                                <p class="text-xs" style="color: var(--text-muted);">${formatTime(w.requested)}</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${w.status === 'approved' ? 'bg-green-100 text-green-700' : w.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">${w.status}</span>
+                        </div>
+                    `).join('') || '<p class="text-center py-4" style="color: var(--text-muted);">No withdrawals yet</p>'}
+                </div>
+            </div>
+            
+            <button onclick="setView('profile')" class="btn-secondary w-full mt-4">← Back to Profile</button>
+        `;
+        }
+
+        function renderAchievementsView() {
+            const userAchievements = userData.achievements || [];
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">🏆 Achievements</h2>
+                <p style="color: var(--text-secondary);">${userAchievements.length} / ${ACHIEVEMENTS.length} unlocked</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                ${ACHIEVEMENTS.map(a => {
+                    const unlocked = userAchievements.includes(a.id);
+                    return `
+                    <div class="glass-card p-4 text-center ${unlocked ? '' : 'opacity-50'}">
+                        <div class="achievement-badge mx-auto mb-2 ${unlocked ? 'unlocked' : 'locked'}">
+                            ${a.icon}
+                        </div>
+                        <p class="font-bold text-sm" style="color: var(--text-primary);">${a.name}</p>
+                        <p class="text-xs mb-2" style="color: var(--text-muted);">${a.desc}</p>
+                        <p class="text-sm font-medium ${unlocked ? 'text-green-500' : 'text-[var(--text-muted)]'}">+${a.pts} pts</p>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <button onclick="setView('profile')" class="btn-secondary w-full mt-6">← Back to Profile</button>
+        `;
+        }
+
+        function renderAdminView() {
+            if (!userData.isAdmin) {
+                setView('home');
+                return '';
+            }
+            
+            const users = Object.entries(allUsers)
+                .filter(([id]) => id !== ADMIN_ID)
+                .map(([id, u]) => ({ id, ...u }));
+            
+            const onlineUsers = users.filter(u => u.online);
+            const pendingWds = users.flatMap(u => (u.withdrawals || []).filter(w => w.status === 'pending').map(w => ({ ...w, userId: u.id, userName: u.name })));
+            
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">👑 Admin Panel</h2>
+                <p style="color: var(--text-secondary);">Manage SpinWin</p>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="stat-card">
+                    <p class="text-3xl font-bold" style="color: var(--text-primary);">${users.length}</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Total Users</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-3xl font-bold text-green-500">${onlineUsers.length}</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Online Now</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-3xl font-bold text-amber-500">${pendingWds.length}</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Pending WDs</p>
+                </div>
+                <div class="stat-card">
+                    <p class="text-3xl font-bold" style="color: var(--text-primary);">10K</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Jackpot</p>
+                </div>
+            </div>
+            
+            <!-- Admin Actions -->
+            <div class="space-y-2">
+                <button onclick="showAdminUsers()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👥</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Manage Users</span>
+                    </div>
+                    <span class="text-sm" style="color: var(--text-muted);">${users.length} users</span>
+                </button>
+                
+                <button onclick="showAdminTasks()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">📋</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Manage Tasks</span>
+                    </div>
+                    <span class="text-sm" style="color: var(--text-muted);">${globalTasks.filter(t => t.active).length} active</span>
+                </button>
+                
+                <button onclick="showAdminWithdrawals()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">💳</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Withdrawals</span>
+                    </div>
+                    <span class="text-sm ${pendingWds.length > 0 ? 'text-amber-500 font-bold' : 'text-[var(--text-muted)]'}">${pendingWds.length} pending</span>
+                </button>
+                
+                <button onclick="showAdminAnnouncement()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">📢</span>
+                        <span class="font-medium" style="color: var(--text-primary);">Send Announcement</span>
+                    </div>
+                    <span style="color: var(--text-muted);">→</span>
+                </button>
+                
+                <button onclick="showAdminSettings()" class="glass-card w-full p-4 text-left flex items-center justify-between hover:scale-[1.01] transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">⚙️</span>
+                        <span class="font-medium" style="color: var(--text-primary);">App Settings</span>
+                    </div>
+                    <span style="color: var(--text-muted);">→</span>
+                </button>
+            </div>
+            
+            <button onclick="setView('profile')" class="btn-secondary w-full mt-6">← Back to Profile</button>
+        `;
+        }
+
+        function showAdminUsers() {
+            const users = Object.entries(allUsers)
+                .filter(([id]) => id !== ADMIN_ID)
+                .map(([id, u]) => ({ id, ...u }));
+            
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">👥 All Users (${users.length})</h2>
+                    
+                    <div class="space-y-2 max-h-96 overflow-y-auto">
+                        ${users.map(u => {
+                            const userBadge = getUserBadge(u.pts);
+                            return `
+                            <div class="glass-card p-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <p class="font-medium" style="color: var(--text-primary);">
+                                            ${u.name} 
+                                            ${u.verified ? '<span class="text-blue-500" title="Verified">✓</span>' : ''}
+                                            ${u.online ? '<span class="text-xs text-green-500">(Online)</span>' : '<span class="text-xs text-[var(--text-muted)]">(Offline)</span>'}
+                                        </p>
+                                        <p class="text-xs" style="color: var(--text-muted);">${u.email}</p>
+                                        <p class="text-xs mt-1">
+                                            <span style="color: var(--text-muted);">Points: ${formatNumber(u.pts || 0)}</span>
+                                            <span class="ml-2 px-1.5 py-0.5 rounded text-xs" style="background: ${userBadge.color}33; color: ${userBadge.color};">${userBadge.icon} ${userBadge.name}</span>
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-1 flex-wrap justify-end">
+                                        <button onclick="toggleUserVerification('${u.id}')" class="px-2 py-1 ${u.verified ? 'bg-blue-500' : 'bg-gray-400'} text-white text-xs rounded-lg" title="${u.verified ? 'Remove verification' : 'Verify user'}">
+                                            ${u.verified ? '✓✓' : '✓'}
+                                        </button>
+                                        <button onclick="editUserPoints('${u.id}')" class="px-2 py-1 bg-blue-500 text-white text-xs rounded-lg">Edit</button>
+                                        <button onclick="banUser('${u.id}')" class="px-2 py-1 bg-red-500 text-white text-xs rounded-lg">Ban</button>
+                                    </div>
+                                </div>
+                            </div>
+                            `;
+                        }).join('') || '<p class="text-center py-8" style="color: var(--text-muted);">No users yet</p>'}
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-4">Close</button>
+                </div>
+            `);
+        }
+
+        async function editUserPoints(uid) {
+            const user = allUsers[uid];
+            if (!user) return;
+            
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">Edit Points: ${user.name}</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2" style="color: var(--text-primary);">Points</label>
+                        <input type="number" id="edit-points" value="${user.pts}" class="input-field">
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="btn-secondary flex-1">Cancel</button>
+                        <button onclick="saveUserPoints('${uid}')" class="btn-primary flex-1">Save</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        async function saveUserPoints(uid) {
+            const points = parseInt($('edit-points').value) || 0;
+            await userRef(uid).update({ pts: points });
+            showToast('Points updated!', 'success');
+            closeModal();
+            showAdminUsers();
+        }
+
+        async function banUser(uid) {
+            if (!confirm('Are you sure you want to ban this user?')) return;
+            await userRef(uid).remove();
+            showToast('User banned', 'success');
+            closeModal();
+            showAdminUsers();
+        }
+
+        function showAdminTasks() {
+            const activeTasks = globalTasks.filter(t => t.active);
+            
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold" style="color: var(--text-primary);">📋 Manage Tasks</h2>
+                        <button onclick="showCreateTaskForm()" class="btn-primary py-2 px-4 text-sm">+ New Task</button>
+                    </div>
+                    
+                    <div class="space-y-2 max-h-80 overflow-y-auto mb-4">
+                        ${activeTasks.length === 0 ? `
+                            <p class="text-center py-8" style="color: var(--text-muted);">No tasks yet. Create one!</p>
+                        ` : activeTasks.map(t => `
+                            <div class="glass-card p-3" style="background: var(--bg-secondary);">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-medium" style="color: var(--text-primary);">${t.title}</p>
+                                        <p class="text-xs" style="color: var(--text-muted);">${t.description || 'No description'}</p>
+                                        <p class="text-xs mt-1">
+                                            <span class="text-green-500 font-bold">+${t.points} pts</span>
+                                            <span class="ml-2 px-1.5 py-0.5 rounded text-xs" style="background: var(--bg-card);">${t.type || 'daily'}</span>
+                                        </p>
+                                    </div>
+                                    <button onclick="deleteTask('${t.id}')" class="px-3 py-1 bg-red-500 text-white text-xs rounded-lg">Delete</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full">Close</button>
+                </div>
+            `);
+        }
+
+        function showCreateTaskForm() {
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">➕ Create New Task</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Task Title</label>
+                            <input type="text" id="task-title" class="input-field" placeholder="e.g., Watch Video Ad">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Description</label>
+                            <input type="text" id="task-desc" class="input-field" placeholder="e.g., Watch a short video ad">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Points Reward</label>
+                            <input type="number" id="task-points" class="input-field" value="10" min="1">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--text-primary);">Task Type</label>
+                            <select id="task-type" class="input-field">
+                                <option value="daily">Daily (Resets daily)</option>
+                                <option value="one-time">One-time</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="closeModal(); showAdminTasks();" class="btn-secondary flex-1">Cancel</button>
+                        <button onclick="submitNewTask()" class="btn-primary flex-1">Create Task</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        async function submitNewTask() {
+            const title = $('task-title').value.trim();
+            const desc = $('task-desc').value.trim();
+            const points = $('task-points').value;
+            const type = $('task-type').value;
+            
+            if (!title) {
+                showToast('Enter a task title', 'error');
+                return;
+            }
+            
+            await createTask(title, desc, points, type);
+        }
+
+        function showAdminWithdrawals() {
+            const users = Object.entries(allUsers)
+                .filter(([id]) => id !== ADMIN_ID)
+                .map(([id, u]) => ({ id, ...u }));
+            
+            const allWds = [];
+            users.forEach(u => {
+                (u.withdrawals || []).forEach(w => {
+                    allWds.push({ ...w, userId: u.id, userName: u.name, userEmail: u.email });
+                });
+            });
+            
+            const pending = allWds.filter(w => w.status === 'pending');
+            const processed = allWds.filter(w => w.status !== 'pending').slice(-10);
+            
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">💳 Withdrawal Requests</h2>
+                    
+                    <p class="font-medium text-amber-600 mb-2">Pending (${pending.length})</p>
+                    <div class="space-y-2 max-h-40 overflow-y-auto mb-4">
+                        ${pending.map(w => `
+                            <div class="glass-card p-3" style="background: var(--bg-secondary);">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div>
+                                        <p class="font-medium" style="color: var(--text-primary);">${w.userName}</p>
+                                        <p class="text-xs" style="color: var(--text-muted);">${w.userEmail}</p>
+                                    </div>
+                                    <p class="font-bold text-amber-500">${formatNumber(w.amount)} pts</p>
+                                </div>
+                                <p class="text-xs mb-2" style="color: var(--text-muted);">${w.method} • ${w.account}</p>
+                                <p class="text-xs mb-2" style="color: var(--text-muted);">Amount: Rs. ${ptsToRs(w.amount)}</p>
+                                <div class="flex gap-2">
+                                    <button onclick="approveWithdrawal('${w.userId}', '${w.id}')" class="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm">Approve</button>
+                                    <button onclick="rejectWithdrawal('${w.userId}', '${w.id}')" class="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm">Reject</button>
+                                </div>
+                            </div>
+                        `).join('') || '<p class="text-center py-4" style="color: var(--text-muted);">No pending withdrawals</p>'}
+                    </div>
+                    
+                    <p class="font-medium mb-2" style="color: var(--text-primary);">Recent Processed</p>
+                    <div class="space-y-2 max-h-40 overflow-y-auto">
+                        ${processed.map(w => `
+                            <div class="glass-card p-2 text-sm" style="background: var(--bg-secondary);">
+                                <div class="flex items-center justify-between">
+                                    <p style="color: var(--text-primary);">${w.userName} - ${formatNumber(w.amount)} pts</p>
+                                    <span class="px-2 py-0.5 rounded text-xs ${w.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${w.status}</span>
+                                </div>
+                            </div>
+                        `).join('') || '<p class="text-center py-4" style="color: var(--text-muted);">No processed withdrawals</p>'}
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-4">Close</button>
+                </div>
+            `);
+        }
+
+        async function approveWithdrawal(uid, wid) {
+            const user = allUsers[uid];
+            if (!user) return;
+            
+            const withdrawals = (user.withdrawals || []).map(w => {
+                if (w.id === wid) w.status = 'approved';
+                return w;
+            });
+            
+            await userRef(uid).update({ withdrawals });
+            showToast('Withdrawal approved!', 'success');
+            showAdminWithdrawals();
+        }
+
+        async function rejectWithdrawal(uid, wid) {
+            const user = allUsers[uid];
+            if (!user) return;
+            
+            const withdrawals = (user.withdrawals || []).map(w => {
+                if (w.id === wid) w.status = 'rejected';
+                return w;
+            });
+            
+            const wd = withdrawals.find(w => w.id === wid);
+            await userRef(uid).update({
+                withdrawals,
+                pts: (user.pts || 0) + wd.amount
+            });
+            
+            showToast('Withdrawal rejected & refunded', 'success');
+            showAdminWithdrawals();
+        }
+
+        function showAdminAnnouncement() {
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">📢 Send Announcement</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2" style="color: var(--text-primary);">Message</label>
+                        <textarea id="announcement-msg" rows="4" class="input-field" placeholder="Enter announcement..."></textarea>
+                    </div>
+                    
+                    <button onclick="sendAnnouncement()" class="btn-primary w-full">Send to All Users</button>
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-2">Cancel</button>
+                </div>
+            `);
+        }
+
+        async function sendAnnouncement() {
+            const msg = $('announcement-msg').value.trim();
+            if (!msg) {
+                showToast('Enter a message', 'error');
+                return;
+            }
+            
+            await globalRef().child('announcements').push({
+                message: msg,
+                time: new Date().toISOString(),
+                from: 'Admin'
+            });
+            
+            showToast('Announcement sent!', 'success');
+            closeModal();
+        }
+
+        function showAdminSettings() {
+            showModal(`
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">⚙️ App Settings</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="glass-card p-4">
+                            <p class="font-medium mb-2" style="color: var(--text-primary);">Jackpot Amount</p>
+                            <input type="number" id="jackpot-amt" value="10000" class="input-field">
+                        </div>
+                        
+                        <div class="glass-card p-4">
+                            <p class="font-medium mb-2" style="color: var(--text-primary);">Min Withdrawal</p>
+                            <input type="number" id="min-wd" value="${MIN_WITHDRAW}" class="input-field">
+                        </div>
+                        
+                        <div class="glass-card p-4">
+                            <p class="font-medium mb-2" style="color: var(--text-primary);">Daily Spins Limit</p>
+                            <input type="number" id="max-spins" value="${MAX_DAILY_SPINS}" class="input-field">
+                        </div>
+                    </div>
+                    
+                    <button onclick="saveSettings()" class="btn-primary w-full mt-4">Save Settings</button>
+                    <button onclick="closeModal()" class="btn-secondary w-full mt-2">Cancel</button>
+                </div>
+            `);
+        }
+
+        async function saveSettings() {
+            const settings = {
+                jackpot: parseInt($('jackpot-amt').value) || 10000,
+                minWithdrawal: parseInt($('min-wd').value) || 4000,
+                maxDailySpins: parseInt($('max-spins').value) || 10
+            };
+            
+            await globalRef().child('settings').set(settings);
+            showToast('Settings saved!', 'success');
+            closeModal();
+        }
+
+        function renderSettingsView() {
+            return `
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold" style="color: var(--text-primary);">⚙️ Settings</h2>
+            </div>
+            
+            <!-- Theme -->
+            <div class="glass-card p-4 mb-4">
+                <p class="font-bold mb-3" style="color: var(--text-primary);">🎨 Theme</p>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setTheme('default')" class="p-3 rounded-lg border-2 ${theme === 'default' ? 'border-blue-500' : ''}" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                        <span class="text-white text-sm font-medium">Default</span>
+                    </button>
+                    <button onclick="setTheme('dark')" class="p-3 rounded-lg border-2 ${theme === 'dark' ? 'border-blue-500' : ''}" style="background: #0f172a;">
+                        <span class="text-white text-sm font-medium">Dark</span>
+                    </button>
+                    <button onclick="setTheme('neon')" class="p-3 rounded-lg border-2 ${theme === 'neon' ? 'border-blue-500' : ''}" style="background: linear-gradient(135deg, #00f0ff, #8b5cf6);">
+                        <span class="text-white text-sm font-medium">Neon</span>
+                    </button>
+                    <button onclick="setTheme('sunset')" class="p-3 rounded-lg border-2 ${theme === 'sunset' ? 'border-blue-500' : ''}" style="background: linear-gradient(135deg, #f97316, #ec4899);">
+                        <span class="text-white text-sm font-medium">Sunset</span>
+                    </button>
+                    <button onclick="setTheme('ocean')" class="p-3 rounded-lg border-2 ${theme === 'ocean' ? 'border-blue-500' : ''}" style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">
+                        <span class="text-white text-sm font-medium">Ocean</span>
+                    </button>
+                    <button onclick="setTheme('forest')" class="p-3 rounded-lg border-2 ${theme === 'forest' ? 'border-blue-500' : ''}" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <span class="text-white text-sm font-medium">Forest</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sound -->
+            <div class="glass-card p-4 mb-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-bold" style="color: var(--text-primary);">🔊 Sound Effects</p>
+                        <p class="text-sm" style="color: var(--text-muted);">Toggle game sounds</p>
+                    </div>
+                    <button onclick="toggleSound()" class="w-14 h-8 rounded-full relative transition ${soundEnabled ? 'bg-blue-500' : 'bg-gray-300'}">
+                        <div class="w-6 h-6 rounded-full bg-white absolute top-1 transition ${soundEnabled ? 'right-1' : 'left-1'}"></div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Account -->
+            <div class="glass-card p-4">
+                <p class="font-bold mb-3" style="color: var(--text-primary);">👤 Account</p>
+                <div class="space-y-2">
+                    <div class="flex justify-between py-2 border-b" style="border-color: var(--border-color);">
+                        <span style="color: var(--text-secondary);">Email</span>
+                        <span class="font-medium" style="color: var(--text-primary);">${userData.email}</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b" style="border-color: var(--border-color);">
+                        <span style="color: var(--text-secondary);">Member Since</span>
+                        <span class="font-medium" style="color: var(--text-primary);">${new Date(userData.created).toLocaleDateString()}</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span style="color: var(--text-secondary);">User ID</span>
+                        <span class="font-mono text-sm" style="color: var(--text-primary);">${currentUser.slice(0, 15)}...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="setView('profile')" class="btn-secondary w-full mt-6">← Back to Profile</button>
+        `;
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            localStorage.setItem('spinwin_sound', soundEnabled);
+            render();
+        }
+
+        function copyReferralCode() {
+            navigator.clipboard.writeText(userData.refCode);
+            showToast('Referral code copied!', 'success');
+        }
+
+        function getLeaderboard() {
+            return Object.entries(allUsers)
+                .filter(([id, u]) => !u.isAdmin)
+                .map(([id, u]) => ({
+                    id,
+                    name: u.name,
+                    pts: u.pts || 0,
+                    spins: u.spins || 0,
+                    level: u.level || 1,
+                    online: u.online,
+                    verified: u.verified || false
+                }))
+                .sort((a, b) => b.pts - a.pts)
+                .slice(0, 100);
+        }
+
+        // =====================================================
+        // SETTINGS
+        // =====================================================
+        function showSettings() {
+            setView('settings');
+        }
+
+        // =====================================================
+        // INITIALIZATION
+        // =====================================================
+        async function init() {
+            applyTheme();
+            
+            // Load tasks from Firebase
+            await loadTasks();
+            
+            // Check for saved session
+            const savedUid = localStorage.getItem('spinwin_uid');
+            
+            if (savedUid) {
+                try {
+                    const snap = await userRef(savedUid).once('value');
+                    if (snap.exists()) {
+                        await updateOnlineStatus(savedUid, true);
+                        currentUser = savedUid;
+                        listenToUser();
+                        listenToAllUsers();
+                    } else {
+                        localStorage.removeItem('spinwin_uid');
+                        render();
+                    }
+                } catch (e) {
+                    console.error('Init error:', e);
+                    render();
+                }
+            } else {
+                render();
+            }
+            
+            // Initialize admin account
+            try {
+                const adminSnap = await userRef(ADMIN_ID).once('value');
+                if (!adminSnap.exists()) {
+                    await createAdminAccount();
+                }
+            } catch (e) {}
+            
+            // Initialize global data
+            try {
+                const globalSnap = await globalRef().once('value');
+                if (!globalSnap.exists()) {
+                    await globalRef().set({
+                        jackpot: { amount: 10000 },
+                        settings: {
+                            minWithdrawal: MIN_WITHDRAW,
+                            maxDailySpins: MAX_DAILY_SPINS
+                        },
+                        stats: { totalUsers: 0 }
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
